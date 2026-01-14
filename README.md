@@ -1,48 +1,182 @@
-# syswatch-ui
+# 🌿 生态环境系统 — 资源监控与报警平台（前端）
 
-This template should help get you started developing with Vue 3 in Vite.
+## 📌 项目简介
 
-## Recommended IDE Setup
+本系统用于生态环境信息化项目运维场景，实现对服务器、数据库、应用服务等资源的实时监控、阈值预警与异常告警。前端提供可视化监控界面、阈值配置入口、告警管理及运维辅助操作。
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+系统特点：
 
-## Recommended Browser Setup
+* 📊 多类型资源统一监控
+* 🚨 智能阈值规则预警
+* 🔔 故障异常告警及通知
+* 🧭 高可视化运维大屏
+* ⚙️ 支持运维告警处理流程
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+---
 
-## Type Support for `.vue` Imports in TS
+## 🛠️ 技术栈
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+| 模块   | 技术                        |
+| ---- | ------------------------- |
+| 框架   | Vue 3 / React 18（按实际情况修改） |
+| UI库  | Element Plus / Ant Design |
+| 状态管理 | Pinia / Redux Toolkit     |
+| 数据交互 | Axios                     |
+| 图表组件 | ECharts                   |
+| 构建工具 | Vite / Webpack            |
 
-## Customize configuration
+> 注：按实际项目情况替换上述技术名称
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+---
 
-## Project Setup
+## 📁 项目结构（示例）
 
-```sh
-npm install
+```
+src/
+├── api/                # 后端接口封装
+├── assets/             # 图片、图标
+├── components/         # 通用组件
+├── views/              # 页面模块
+│   ├── dashboard/      # 资源监控大屏
+│   ├── resource/       # 资源状态列表 & 详情
+│   ├── threshold/      # 阈值规则管理
+│   ├── alert/          # 告警查看 & 处理
+├── store/              # 状态管理
+├── utils/              # 工具类：格式化、节流、防抖
+└── router/             # 路由管理
 ```
 
-### Compile and Hot-Reload for Development
+---
 
-```sh
+## 🚀 功能模块介绍
+
+### 1️⃣ 资源监控
+
+* 展示服务器、数据库、应用服务实时指标
+* 支持图表折线趋势展示
+* 支持刷新/过滤/搜索
+
+### 2️⃣ 阈值规则管理
+
+* 创建/编辑资源阈值规则
+* 支持启用/禁用
+* 支持预警等级配置
+
+### 3️⃣ 告警中心
+
+* 展示当前及历史告警
+* 支持告警状态变更：未处理 / 已处理
+* 支持关键词筛选、资源筛选、时间区间筛选
+
+### 4️⃣ 告警通知
+
+* 支持前端 WebSocket 实时弹窗提醒
+* 告警消息红点提示
+
+### 5️⃣ 运维辅助
+
+* 可查看资源详情、指标趋势、异常点定位
+
+---
+
+## 📦 安装与运行
+
+### 1. 安装依赖
+
+```bash
+npm install
+# 或
+pnpm install
+```
+
+### 2. 本地开发
+
+```bash
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### 3. 打包构建
 
-```sh
+```bash
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### 4. 预览构建产物
 
-```sh
-npm run lint
+```bash
+npm run preview
 ```
+
+---
+
+## 🔌 后端接口说明
+
+前端默认通过 `/api/...` 调用后端接口
+主要模块：
+
+* `GET /api/resources/status`
+* `GET /api/resources/{id}`
+* `GET /api/thresholds`
+* `POST /api/thresholds`
+* `GET /api/alerts`
+* `PUT /api/alerts/{id}/status`
+
+> 接口路径可按后端实际情况修改
+
+---
+
+## 🔧 配置文件
+
+| 文件                 | 用途       |
+| ------------------ | -------- |
+| `.env.development` | 本地调试环境变量 |
+| `.env.production`  | 生产环境变量   |
+| `vite.config.js`   | 构建工具配置   |
+
+示例：
+
+```
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+---
+
+## 🔒 权限与登录（如有）
+
+支持：
+
+* 登录认证
+* 基于角色的菜单权限控制
+* 操作按钮级权限控制
+
+---
+
+## 📜 代码规范
+
+* 遵循 ESLint + Prettier
+* 强制组件职责明确、目录分层清晰
+* 不允许无注释魔法数字、硬编码
+
+---
+
+## 🗺️ 后续扩展规划
+
+* DevOps 扩展（自动扩缩容、健康自愈）
+* 告警事件关联分析
+* 指标预测与 AI 异常检测
+* 资源拓扑图展示
+
+---
+
+## 🤝 贡献与协作
+
+欢迎提交 Issue / PR
+项目中建议使用 Feature 分支流程：
+
+```
+feature/*   开发新功能
+fix/*       修复缺陷
+release/*   版本发布
+```
+
+
