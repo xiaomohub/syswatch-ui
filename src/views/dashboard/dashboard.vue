@@ -123,69 +123,65 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
-// 真数据 state
+// -------------------- Dashboard 总览 --------------------
 const stats = ref([
   { label: 'CPU 使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'cyan', icon: '...' },
   { label: '内存使用率', value: '--', progress: 0, trend: { type: 'down', value: '0%' }, color: 'green', icon: '...' },
   { label: '磁盘使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'yellow', icon: '...' },
 ])
 
+// -------------------- Prometheus 数据请求 --------------------
 async function fetchStats() {
   try {
-    const cpu = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)' }
+    // CPU 使用率
+    const cpuRes = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: '100 * (1 - sum(node_cpu_seconds_total{mode="idle"}) by (instance) / sum(node_cpu_seconds_total) by (instance))' }
     })
+    if (cpuRes.data.data.result.length > 0) {
+      const cpuVal = Math.max(0, parseFloat(cpuRes.data.data.result[0].value[1]))
+      stats.value[0].progress = cpuVal
+      stats.value[0].value = cpuVal.toFixed(1) + '%'
+    }
 
-    const mem = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)' }
+    // 内存使用率
+    const memRes = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: '1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)' }
     })
+    if (memRes.data.data.result.length > 0) {
+      const memVal = Math.max(0, parseFloat(memRes.data.data.result[0].value[1]) * 100)
+      stats.value[1].progress = memVal
+      stats.value[1].value = memVal.toFixed(1) + '%'
+    }
 
-    const disk = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '100 * (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"}' }
+    // 磁盘使用率
+    const diskRes = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: 'avg((node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100' }
     })
+    if (diskRes.data.data.result.length > 0) {
+      const diskVal = Math.max(0, parseFloat(diskRes.data.data.result[0].value[1]))
+      stats.value[2].progress = diskVal
+      stats.value[2].value = diskVal.toFixed(1) + '%'
+    }
 
-    stats.value[0].progress = Number(cpu.data.data.result[0].value[1])
-    stats.value[0].value = stats.value[0].progress.toFixed(1) + '%'
-
-    stats.value[1].progress = Number(mem.data.data.result[0].value[1])
-    stats.value[1].value = mem.data.data.result[0].value[1] + '%'
-
-    stats.value[2].progress = Number(disk.data.data.result[0].value[1])
-    stats.value[2].value = stats.value[2].progress.toFixed(1) + '%'
-
-  } catch(e) {
+  } catch (e) {
     console.error('获取 Prometheus 数据失败', e)
   }
 }
 
+// -------------------- 组件挂载 --------------------
+onMounted(() => {
+  fetchStats()  // ⚡ 页面挂载时立即请求数据
+})
 
-// Nodes data
-const nodes = ref([
-  { id: 1, name: 'Node-01', ip: '172.17.0.1:9100', cpu: 45, memory: 62, disk: 58, online: true },
-  { id: 2, name: 'Node-02', ip: '172.17.0.2:9100', cpu: 78, memory: 71, disk: 45, online: true },
-  { id: 3, name: 'Node-03', ip: '172.17.0.3:9100', cpu: 23, memory: 45, disk: 82, online: true },
-  { id: 4, name: 'Node-04', ip: '172.17.0.4:9100', cpu: 0, memory: 0, disk: 0, online: false },
-])
-
-// Grafana config
+// -------------------- Grafana 配置 --------------------
 const timeRange = ref('now-24h')
 const grafanaLoading = ref(true)
 const autoRefresh = ref(true)
 
-const grafanaUrl = computed(() => {
-  return `http://localhost:3000/goto/afabb2aq3rldsb?orgId=1`
-})
+const grafanaUrl = computed(() => `http://localhost:3000/goto/afabb2aq3rldsb?orgId=1`)
 
 const onGrafanaLoad = () => {
   grafanaLoading.value = false
-}
-
-const refreshData = () => {
-  grafanaLoading.value = true
-  // 模拟数据刷新
-  setTimeout(() => {
-    grafanaLoading.value = false
-  }, 1000)
 }
 
 const toggleAutoRefresh = () => {
@@ -196,26 +192,13 @@ const openGrafana = () => {
   window.open('http://localhost:3000/?orgId=1&from=now-6h&to=now&timezone=browser', '_blank')
 }
 
-// Auto refresh
+// -------------------- 清理 --------------------
 let refreshInterval
-onMounted(() => {
-  if (autoRefresh.value) {
-    refreshInterval = setInterval(() => {
-      // 更新统计数据
-      stats.value = stats.value.map(stat => ({
-        ...stat,
-        progress: Math.min(100, Math.max(0, stat.progress + (Math.random() - 0.5) * 5))
-      }))
-    }, 5000)
-  }
-})
-
 onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-  }
+  if (refreshInterval) clearInterval(refreshInterval)
 })
 </script>
+
 
 <style scoped>
 .dashboard {
