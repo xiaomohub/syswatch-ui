@@ -121,42 +121,43 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
 
-// Stats data
+// 真数据 state
 const stats = ref([
-  {
-    label: 'CPU 使用率',
-    value: '45.8%',
-    progress: 45.8,
-    trend: { type: 'up', value: '2.3%' },
-    color: 'cyan',
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>'
-  },
-  {
-    label: '内存使用量',
-    value: '12.4 GB',
-    progress: 62,
-    trend: { type: 'down', value: '1.2%' },
-    color: 'green',
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v3"/><path d="M3 7v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2z"/><path d="M8 5V3"/><path d="M16 5V3"/><path d="M12 5V3"/></svg>'
-  },
-  {
-    label: '磁盘使用率',
-    value: '67.2%',
-    progress: 67.2,
-    trend: { type: 'up', value: '0.5%' },
-    color: 'yellow',
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>'
-  },
-  {
-    label: '网络吞吐量',
-    value: '1.2 Gbps',
-    progress: 48,
-    trend: { type: 'up', value: '5.8%' },
-    color: 'purple',
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
-  }
+  { label: 'CPU 使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'cyan', icon: '...' },
+  { label: '内存使用率', value: '--', progress: 0, trend: { type: 'down', value: '0%' }, color: 'green', icon: '...' },
+  { label: '磁盘使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'yellow', icon: '...' },
 ])
+
+async function fetchStats() {
+  try {
+    const cpu = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)' }
+    })
+
+    const mem = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: '100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)' }
+    })
+
+    const disk = await axios.get('http://localhost:9099/api/v1/query', {
+      params: { query: '100 * (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"}' }
+    })
+
+    stats.value[0].progress = Number(cpu.data.data.result[0].value[1])
+    stats.value[0].value = stats.value[0].progress.toFixed(1) + '%'
+
+    stats.value[1].progress = Number(mem.data.data.result[0].value[1])
+    stats.value[1].value = mem.data.data.result[0].value[1] + '%'
+
+    stats.value[2].progress = Number(disk.data.data.result[0].value[1])
+    stats.value[2].value = stats.value[2].progress.toFixed(1) + '%'
+
+  } catch(e) {
+    console.error('获取 Prometheus 数据失败', e)
+  }
+}
+
 
 // Nodes data
 const nodes = ref([
@@ -172,7 +173,7 @@ const grafanaLoading = ref(true)
 const autoRefresh = ref(true)
 
 const grafanaUrl = computed(() => {
-  return `http://localhost:3000/d/rYdddlPWk/node-exporter-full?orgId=1&from=${timeRange.value}&to=now&timezone=browser&var-ds_prometheus=cfa7q0bpjwmbkb&var-job=node&var-nodename=58cf0d1d79b9&var-node=172.17.0.1:9100&refresh=1m`
+  return `http://localhost:3000/goto/afabb2aq3rldsb?orgId=1`
 })
 
 const onGrafanaLoad = () => {
