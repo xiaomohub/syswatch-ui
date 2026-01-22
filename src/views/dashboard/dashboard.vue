@@ -135,7 +135,7 @@ async function fetchStats() {
   try {
     // CPU 使用率
     const cpuRes = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '100 * (1 - sum(node_cpu_seconds_total{mode="idle"}) by (instance) / sum(node_cpu_seconds_total) by (instance))' }
+      params: { query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])))' }
     })
     if (cpuRes.data.data.result.length > 0) {
       const cpuVal = Math.max(0, parseFloat(cpuRes.data.data.result[0].value[1]))
