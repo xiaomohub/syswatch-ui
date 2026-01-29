@@ -1,746 +1,797 @@
 <template>
-  <div class="alertconfig-page">
-    <div class="config-grid">
-      <!-- Threshold Settings -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-icon cyan">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-          </div>
+  <div class="alert-rule-page">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="page-title">
+          <svg class="title-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
           <div>
-            <h3 class="card-title">阈值配置</h3>
-            <p class="card-desc">设置各项指标的告警阈值</p>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="threshold-item" v-for="threshold in thresholds" :key="threshold.key">
-            <div class="threshold-info">
-              <span class="threshold-name">{{ threshold.name }}</span>
-              <span class="threshold-desc">{{ threshold.description }}</span>
-            </div>
-            <div class="threshold-inputs">
-              <div class="input-group">
-                <label>警告</label>
-                <div class="input-wrapper">
-                  <input 
-                    type="number" 
-                    v-model="threshold.warning" 
-                    class="threshold-input warning"
-                  >
-                  <span class="input-unit">{{ threshold.unit }}</span>
-                </div>
-              </div>
-              <div class="input-group">
-                <label>严重</label>
-                <div class="input-wrapper">
-                  <input 
-                    type="number" 
-                    v-model="threshold.critical" 
-                    class="threshold-input critical"
-                  >
-                  <span class="input-unit">{{ threshold.unit }}</span>
-                </div>
-              </div>
-            </div>
+            <h1>告警规则管理</h1>
+            <span class="subtitle">Prometheus Alert Rules</span>
           </div>
         </div>
       </div>
+      <div class="header-actions">
+        <button class="action-btn" @click="publishAll" :disabled="publishing">
+          <svg v-if="!publishing" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          <span v-else class="spinner"></span>
+          发布所有规则
+        </button>
+        <button class="action-btn primary" @click="openAddModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          新增规则
+        </button>
+      </div>
+    </div>
 
-      <!-- Alert Toggles -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-icon purple">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card cyan">
+        <div class="stat-header">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <div>
-            <h3 class="card-title">告警开关</h3>
-            <p class="card-desc">启用或禁用各类告警</p>
-          </div>
         </div>
-        <div class="card-body">
-          <div class="toggle-item" v-for="toggle in alertToggles" :key="toggle.key">
-            <div class="toggle-info">
-              <span class="toggle-icon" v-html="toggle.icon"></span>
-              <div>
-                <span class="toggle-name">{{ toggle.name }}</span>
-                <span class="toggle-desc">{{ toggle.description }}</span>
-              </div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="toggle.enabled">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+        <div class="stat-value">{{ rules.length }}</div>
+        <div class="stat-label">总规则数</div>
+        <div class="stat-progress">
+          <div class="stat-progress-bar" :style="{ width: '100%' }"></div>
         </div>
       </div>
+      <div class="stat-card green">
+        <div class="stat-header">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-value">{{ enabledCount }}</div>
+        <div class="stat-label">已启用</div>
+        <div class="stat-progress">
+          <div class="stat-progress-bar" :style="{ width: rules.length ? (enabledCount / rules.length * 100) + '%' : '0%' }"></div>
+        </div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-header">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-value">{{ rules.length - enabledCount }}</div>
+        <div class="stat-label">已停用</div>
+        <div class="stat-progress">
+          <div class="stat-progress-bar" :style="{ width: rules.length ? ((rules.length - enabledCount) / rules.length * 100) + '%' : '0%' }"></div>
+        </div>
+      </div>
+    </div>
 
-      <!-- Alert Rules -->
-      <div class="config-card full-width">
-        <div class="card-header">
-          <div class="card-icon green">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-              <polyline points="2 17 12 22 22 17"/>
-              <polyline points="2 12 12 17 22 12"/>
+    <!-- Table Section -->
+    <div class="table-section">
+      <div class="section-header">
+        <div class="section-title">
+          <svg class="section-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          <span>规则列表</span>
+        </div>
+        <div class="section-actions">
+          <span class="rules-count">共 {{ rules.length }} 条规则</span>
+        </div>
+      </div>
+      
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>规则名称</th>
+              <th>PromQL 表达式</th>
+              <th>持续时间</th>
+              <th>严重级别</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="6" class="loading-cell">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </td>
+            </tr>
+            <tr v-else-if="rules.length === 0">
+              <td colspan="6" class="empty-cell">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>暂无告警规则</span>
+              </td>
+            </tr>
+            <tr v-for="rule in rules" :key="rule.id" :class="{ disabled: !rule.enabled }">
+              <td class="name-cell">
+                <span class="rule-name">{{ rule.name }}</span>
+                <span class="rule-summary" v-if="rule.summary">{{ rule.summary }}</span>
+              </td>
+              <td class="expr-cell">
+                <code>{{ rule.expr }}</code>
+              </td>
+              <td class="duration-cell">{{ rule.duration || '0s' }}</td>
+              <td>
+                <span class="severity-badge" :class="rule.severity">
+                  {{ severityLabel(rule.severity) }}
+                </span>
+              </td>
+              <td>
+                <label class="switch">
+                  <input 
+                    type="checkbox" 
+                    :checked="rule.enabled === 1" 
+                    @change="toggleEnable(rule)"
+                  >
+                  <span class="slider"></span>
+                </label>
+              </td>
+              <td class="action-cell">
+                <button class="table-action-btn edit" @click="openEditModal(rule)" title="编辑">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button class="table-action-btn delete" @click="confirmDelete(rule)" title="删除">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal-overlay" v-if="showModal" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>{{ isEdit ? '编辑规则' : '新增规则' }}</h2>
+          <button class="close-btn" @click="closeModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
-          </div>
-          <div>
-            <h3 class="card-title">告警规则</h3>
-            <p class="card-desc">管理自定义告警规则</p>
-          </div>
-          <button class="btn btn-primary" @click="showAddRule = true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            添加规则
           </button>
         </div>
-        <div class="card-body">
-          <div class="rules-table">
-            <div class="table-header">
-              <span class="col-status">状态</span>
-              <span class="col-name">规则名称</span>
-              <span class="col-condition">触发条件</span>
-              <span class="col-severity">严重级别</span>
-              <span class="col-duration">持续时间</span>
-              <span class="col-actions">操作</span>
-            </div>
-            <div class="table-body">
-              <div class="rule-row" v-for="rule in rules" :key="rule.id">
-                <div class="col-status">
-                  <span class="status-indicator" :class="rule.enabled ? 'active' : 'inactive'"></span>
-                </div>
-                <div class="col-name">
-                  <span class="rule-name">{{ rule.name }}</span>
-                  <span class="rule-desc">{{ rule.description }}</span>
-                </div>
-                <div class="col-condition">
-                  <code class="condition-code">{{ rule.condition }}</code>
-                </div>
-                <div class="col-severity">
-                  <span class="severity-tag" :class="rule.severity">{{ getSeverityLabel(rule.severity) }}</span>
-                </div>
-                <div class="col-duration">
-                  <span class="duration-value">{{ rule.duration }}</span>
-                </div>
-                <div class="col-actions">
-                  <button class="icon-btn" @click="toggleRule(rule)" :title="rule.enabled ? '禁用' : '启用'">
-                    <svg v-if="rule.enabled" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="6" y="4" width="4" height="16"/>
-                      <rect x="14" y="4" width="4" height="16"/>
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                  </button>
-                  <button class="icon-btn" @click="editRule(rule)" title="编辑">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button class="icon-btn delete" @click="deleteRule(rule.id)" title="删除">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Notification Settings -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-icon yellow">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-          </div>
-          <div>
-            <h3 class="card-title">通知设置</h3>
-            <p class="card-desc">配置告警通知方式</p>
-          </div>
-        </div>
-        <div class="card-body">
+        <div class="modal-body">
           <div class="form-group">
-            <label class="form-label">通知邮箱</label>
-            <input type="email" class="form-input" v-model="notifySettings.email" placeholder="ops@example.com">
+            <label>规则名称 <span class="required">*</span></label>
+            <input v-model="form.name" type="text" placeholder="如：HighCpuUsage" />
           </div>
           <div class="form-group">
-            <label class="form-label">Webhook URL</label>
-            <input type="url" class="form-input" v-model="notifySettings.webhook" placeholder="https://hooks.example.com/...">
+            <label>PromQL 表达式 <span class="required">*</span></label>
+            <textarea v-model="form.expr" placeholder="如：100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>持续时间</label>
+              <input v-model="form.duration" type="text" placeholder="如：5m" />
+            </div>
+            <div class="form-group">
+              <label>严重级别</label>
+              <select v-model="form.severity">
+                <option value="info">信息</option>
+                <option value="warning">警告</option>
+                <option value="critical">严重</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">通知频率</label>
-            <select class="form-select" v-model="notifySettings.frequency">
-              <option value="realtime">实时通知</option>
-              <option value="5m">每5分钟汇总</option>
-              <option value="15m">每15分钟汇总</option>
-              <option value="1h">每小时汇总</option>
-            </select>
+            <label>摘要信息</label>
+            <input v-model="form.summary" type="text" placeholder="告警摘要" />
           </div>
           <div class="form-group">
-            <label class="form-label">静默时间段</label>
-            <div class="time-range">
-              <input type="time" class="form-input time-input" v-model="notifySettings.silentStart">
-              <span class="time-separator">至</span>
-              <input type="time" class="form-input time-input" v-model="notifySettings.silentEnd">
-            </div>
+            <label>详细描述</label>
+            <textarea v-model="form.description" placeholder="告警详细描述"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.enabled" :true-value="1" :false-value="0" />
+              <span>启用规则</span>
+            </label>
           </div>
         </div>
-      </div>
-
-      <!-- Advanced Settings -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-icon red">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 class="card-title">高级设置</h3>
-            <p class="card-desc">配置告警行为和策略</p>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="advanced-item">
-            <div class="advanced-info">
-              <span class="advanced-name">告警聚合</span>
-              <span class="advanced-desc">相同类型的告警合并发送</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="advancedSettings.aggregation">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="advanced-item">
-            <div class="advanced-info">
-              <span class="advanced-name">自动恢复通知</span>
-              <span class="advanced-desc">告警恢复时发送通知</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="advancedSettings.recoveryNotify">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="advanced-item">
-            <div class="advanced-info">
-              <span class="advanced-name">重复告警抑制</span>
-              <span class="advanced-desc">抑制短时间内的重复告警</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="advancedSettings.suppress">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="form-group" v-if="advancedSettings.suppress">
-            <label class="form-label">抑制时间 (分钟)</label>
-            <input type="number" class="form-input" v-model="advancedSettings.suppressMinutes" min="1" max="60">
-          </div>
-          <div class="advanced-item">
-            <div class="advanced-info">
-              <span class="advanced-name">告警升级</span>
-              <span class="advanced-desc">长时间未处理的告警自动升级</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="advancedSettings.escalation">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+        <div class="modal-footer">
+          <button class="action-btn" @click="closeModal">取消</button>
+          <button class="action-btn primary" @click="submitForm" :disabled="submitting">
+            <span v-if="submitting" class="spinner"></span>
+            {{ isEdit ? '保存' : '创建' }}
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Save Button -->
-    <div class="save-section">
-      <button class="btn btn-secondary" @click="resetConfig">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="1 4 1 10 7 10"/>
-          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-        </svg>
-        重置配置
-      </button>
-      <button class="btn btn-primary" @click="saveConfig">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
-        保存配置
-      </button>
-    </div>
-
-    <!-- Add Rule Modal -->
-    <Teleport to="body">
-      <div class="modal-overlay" v-if="showAddRule" @click.self="showAddRule = false">
-        <div class="modal rule-modal">
-          <div class="modal-header">
-            <h3>{{ editingRule ? '编辑规则' : '添加规则' }}</h3>
-            <button class="close-btn" @click="closeRuleModal">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">规则名称</label>
-              <input type="text" class="form-input" v-model="ruleForm.name" placeholder="例如：CPU高负载告警">
-            </div>
-            <div class="form-group">
-              <label class="form-label">规则描述</label>
-              <input type="text" class="form-input" v-model="ruleForm.description" placeholder="简要描述规则用途">
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">监控指标</label>
-                <select class="form-select" v-model="ruleForm.metric">
-                  <option value="cpu_usage">CPU 使用率</option>
-                  <option value="memory_usage">内存使用率</option>
-                  <option value="disk_usage">磁盘使用率</option>
-                  <option value="network_in">网络入流量</option>
-                  <option value="network_out">网络出流量</option>
-                  <option value="load_avg">系统负载</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">比较运算符</label>
-                <select class="form-select" v-model="ruleForm.operator">
-                  <option value=">">大于 (>)</option>
-                  <option value=">=">大于等于 (>=)</option>
-                  <option value="<">小于 (<)</option>
-                  <option value="<=">小于等于 (<=)</option>
-                  <option value="==">等于 (==)</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">阈值</label>
-                <input type="number" class="form-input" v-model="ruleForm.threshold" placeholder="80">
-              </div>
-              <div class="form-group">
-                <label class="form-label">持续时间</label>
-                <select class="form-select" v-model="ruleForm.duration">
-                  <option value="1m">1 分钟</option>
-                  <option value="5m">5 分钟</option>
-                  <option value="10m">10 分钟</option>
-                  <option value="15m">15 分钟</option>
-                  <option value="30m">30 分钟</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">严重级别</label>
-              <div class="severity-options">
-                <label class="severity-option" :class="{ active: ruleForm.severity === 'critical' }">
-                  <input type="radio" v-model="ruleForm.severity" value="critical">
-                  <span class="severity-dot critical"></span>
-                  严重
-                </label>
-                <label class="severity-option" :class="{ active: ruleForm.severity === 'warning' }">
-                  <input type="radio" v-model="ruleForm.severity" value="warning">
-                  <span class="severity-dot warning"></span>
-                  警告
-                </label>
-                <label class="severity-option" :class="{ active: ruleForm.severity === 'info' }">
-                  <input type="radio" v-model="ruleForm.severity" value="info">
-                  <span class="severity-dot info"></span>
-                  提示
-                </label>
-              </div>
-            </div>
-            <div class="condition-preview">
-              <label class="form-label">生成的条件表达式</label>
-              <code class="preview-code">{{ generatedCondition }}</code>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="closeRuleModal">取消</button>
-            <button class="btn btn-primary" @click="saveRule">保存规则</button>
-          </div>
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" v-if="showDeleteConfirm" @click.self="showDeleteConfirm = false">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h2>确认删除</h2>
+          <button class="close-btn" @click="showDeleteConfirm = false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="confirm-text">
+            确定要删除规则 <strong>{{ ruleToDelete?.name }}</strong> 吗？
+          </p>
+          <p class="confirm-warning">此操作不可恢复</p>
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn" @click="showDeleteConfirm = false">取消</button>
+          <button class="action-btn danger" @click="deleteRule" :disabled="deleting">
+            <span v-if="deleting" class="spinner"></span>
+            删除
+          </button>
         </div>
       </div>
-    </Teleport>
+    </div>
+
+    <!-- Toast -->
+    <transition name="toast">
+      <div v-if="toast.show" class="toast" :class="toast.type">
+        <svg v-if="toast.type === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        {{ toast.message }}
+      </div>
+    </transition>
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, computed } from 'vue'
+<script>
+import { ref, reactive, computed, onMounted } from 'vue'
+import axios from 'axios'
 
-// Thresholds
-const thresholds = ref([
-  { key: 'cpu', name: 'CPU 使用率', description: '处理器使用率阈值', warning: 70, critical: 85, unit: '%' },
-  { key: 'memory', name: '内存使用率', description: '内存占用率阈值', warning: 75, critical: 90, unit: '%' },
-  { key: 'disk', name: '磁盘使用率', description: '磁盘空间占用阈值', warning: 80, critical: 95, unit: '%' },
-  { key: 'load', name: '系统负载', description: '1分钟平均负载阈值', warning: 5, critical: 10, unit: '' },
-])
+const API_BASE = '/api/alert-rules'
 
-// Alert toggles
-const alertToggles = ref([
-  { key: 'cpu', name: 'CPU 告警', description: 'CPU使用率超过阈值时告警', enabled: true, icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>' },
-  { key: 'memory', name: '内存告警', description: '内存使用率超过阈值时告警', enabled: true, icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v3"/><path d="M3 7v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2z"/></svg>' },
-  { key: 'disk', name: '磁盘告警', description: '磁盘空间不足时告警', enabled: true, icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>' },
-  { key: 'network', name: '网络告警', description: '网络异常时告警', enabled: false, icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><circle cx="12" cy="20" r="1"/></svg>' },
-  { key: 'service', name: '服务告警', description: '服务状态异常时告警', enabled: true, icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/></svg>' },
-])
+export default {
+  name: 'AlertRuleManagement',
+  setup() {
+    const rules = ref([])
+    const loading = ref(false)
+    const showModal = ref(false)
+    const showDeleteConfirm = ref(false)
+    const isEdit = ref(false)
+    const submitting = ref(false)
+    const deleting = ref(false)
+    const publishing = ref(false)
+    const ruleToDelete = ref(null)
 
-// Rules
-const rules = ref([
-  { id: 1, name: 'CPU 高负载', description: 'CPU使用率持续过高', condition: 'cpu_usage > 85%', severity: 'critical', duration: '5m', enabled: true },
-  { id: 2, name: '内存告警', description: '内存使用率超过阈值', condition: 'memory_usage > 80%', severity: 'warning', duration: '5m', enabled: true },
-  { id: 3, name: '磁盘空间告警', description: '磁盘使用率过高', condition: 'disk_usage > 90%', severity: 'critical', duration: '10m', enabled: true },
-  { id: 4, name: '网络流量异常', description: '入站流量超过阈值', condition: 'network_in > 1Gbps', severity: 'warning', duration: '5m', enabled: false },
-])
+    const form = reactive({
+      id: null,
+      name: '',
+      expr: '',
+      duration: '5m',
+      severity: 'warning',
+      summary: '',
+      description: '',
+      enabled: 1
+    })
 
-// Notify settings
-const notifySettings = reactive({
-  email: 'ops@example.com',
-  webhook: '',
-  frequency: 'realtime',
-  silentStart: '00:00',
-  silentEnd: '06:00'
-})
+    const toast = reactive({
+      show: false,
+      message: '',
+      type: 'success'
+    })
 
-// Advanced settings
-const advancedSettings = reactive({
-  aggregation: true,
-  recoveryNotify: true,
-  suppress: true,
-  suppressMinutes: 5,
-  escalation: false
-})
+    const enabledCount = computed(() => rules.value.filter(r => r.enabled === 1).length)
 
-// Rule modal
-const showAddRule = ref(false)
-const editingRule = ref(null)
-const ruleForm = reactive({
-  name: '',
-  description: '',
-  metric: 'cpu_usage',
-  operator: '>',
-  threshold: 80,
-  duration: '5m',
-  severity: 'warning'
-})
+    const showToast = (message, type = 'success') => {
+      toast.message = message
+      toast.type = type
+      toast.show = true
+      setTimeout(() => { toast.show = false }, 3000)
+    }
 
-const generatedCondition = computed(() => {
-  const metricLabels = {
-    cpu_usage: 'cpu_usage',
-    memory_usage: 'memory_usage',
-    disk_usage: 'disk_usage',
-    network_in: 'network_in',
-    network_out: 'network_out',
-    load_avg: 'load_avg'
-  }
-  const unit = ruleForm.metric.includes('network') ? 'Mbps' : '%'
-  return `${metricLabels[ruleForm.metric]} ${ruleForm.operator} ${ruleForm.threshold}${unit}`
-})
+    const severityLabel = (severity) => {
+      const map = { info: '信息', warning: '警告', critical: '严重' }
+      return map[severity] || severity
+    }
 
-// Methods
-const getSeverityLabel = (severity) => {
-  const labels = { critical: '严重', warning: '警告', info: '提示' }
-  return labels[severity] || severity
-}
-
-const toggleRule = (rule) => {
-  rule.enabled = !rule.enabled
-}
-
-const editRule = (rule) => {
-  editingRule.value = rule
-  // 解析条件填充表单
-  ruleForm.name = rule.name
-  ruleForm.description = rule.description
-  ruleForm.severity = rule.severity
-  ruleForm.duration = rule.duration
-  showAddRule.value = true
-}
-
-const deleteRule = (id) => {
-  if (confirm('确定要删除该规则吗？')) {
-    rules.value = rules.value.filter(r => r.id !== id)
-  }
-}
-
-const closeRuleModal = () => {
-  showAddRule.value = false
-  editingRule.value = null
-  ruleForm.name = ''
-  ruleForm.description = ''
-  ruleForm.metric = 'cpu_usage'
-  ruleForm.operator = '>'
-  ruleForm.threshold = 80
-  ruleForm.duration = '5m'
-  ruleForm.severity = 'warning'
-}
-
-const saveRule = () => {
-  if (!ruleForm.name) {
-    alert('请输入规则名称')
-    return
-  }
-
-  if (editingRule.value) {
-    // 更新规则
-    const index = rules.value.findIndex(r => r.id === editingRule.value.id)
-    if (index !== -1) {
-      rules.value[index] = {
-        ...rules.value[index],
-        name: ruleForm.name,
-        description: ruleForm.description,
-        condition: generatedCondition.value,
-        severity: ruleForm.severity,
-        duration: ruleForm.duration
+    const fetchRules = async () => {
+      loading.value = true
+      try {
+        const res = await axios.get(`${API_BASE}/enabled`)
+        rules.value = res.data
+      } catch (e) {
+        showToast('获取规则列表失败', 'error')
+      } finally {
+        loading.value = false
       }
     }
-  } else {
-    // 添加新规则
-    rules.value.push({
-      id: Date.now(),
-      name: ruleForm.name,
-      description: ruleForm.description,
-      condition: generatedCondition.value,
-      severity: ruleForm.severity,
-      duration: ruleForm.duration,
-      enabled: true
-    })
+
+    const resetForm = () => {
+      Object.assign(form, {
+        id: null,
+        name: '',
+        expr: '',
+        duration: '5m',
+        severity: 'warning',
+        summary: '',
+        description: '',
+        enabled: 1
+      })
+    }
+
+    const openAddModal = () => {
+      resetForm()
+      isEdit.value = false
+      showModal.value = true
+    }
+
+    const openEditModal = (rule) => {
+      Object.assign(form, { ...rule })
+      isEdit.value = true
+      showModal.value = true
+    }
+
+    const closeModal = () => {
+      showModal.value = false
+      resetForm()
+    }
+
+    const submitForm = async () => {
+      if (!form.name || !form.expr) {
+        showToast('请填写必填项', 'error')
+        return
+      }
+      submitting.value = true
+      try {
+        if (isEdit.value) {
+          await axios.put(API_BASE, form)
+          showToast('规则更新成功')
+        } else {
+          await axios.post(API_BASE, form)
+          showToast('规则创建成功')
+        }
+        closeModal()
+        fetchRules()
+      } catch (e) {
+        showToast('操作失败', 'error')
+      } finally {
+        submitting.value = false
+      }
+    }
+
+    const toggleEnable = async (rule) => {
+      const newEnabled = rule.enabled === 1 ? 0 : 1
+      try {
+        await axios.post(`${API_BASE}/${rule.id}/enable`, null, {
+          params: { enabled: newEnabled }
+        })
+        rule.enabled = newEnabled
+        showToast(newEnabled ? '规则已启用' : '规则已停用')
+      } catch (e) {
+        showToast('操作失败', 'error')
+      }
+    }
+
+    const confirmDelete = (rule) => {
+      ruleToDelete.value = rule
+      showDeleteConfirm.value = true
+    }
+
+    const deleteRule = async () => {
+      deleting.value = true
+      try {
+        await axios.delete(`${API_BASE}/${ruleToDelete.value.id}`)
+        showToast('规则已删除')
+        showDeleteConfirm.value = false
+        fetchRules()
+      } catch (e) {
+        showToast('删除失败', 'error')
+      } finally {
+        deleting.value = false
+      }
+    }
+
+    const publishAll = async () => {
+      publishing.value = true
+      try {
+        await axios.post(`${API_BASE}/publish`)
+        showToast('规则发布成功')
+      } catch (e) {
+        showToast('发布失败', 'error')
+      } finally {
+        publishing.value = false
+      }
+    }
+
+    onMounted(fetchRules)
+
+    return {
+      rules, loading, showModal, showDeleteConfirm, isEdit, submitting,
+      deleting, publishing, ruleToDelete, form, toast, enabledCount,
+      severityLabel, openAddModal, openEditModal, closeModal, submitForm,
+      toggleEnable, confirmDelete, deleteRule, publishAll
+    }
   }
-
-  closeRuleModal()
-}
-
-const resetConfig = () => {
-  if (confirm('确定要重置所有配置吗？')) {
-    // 重置逻辑
-    alert('配置已重置')
-  }
-}
-
-const saveConfig = () => {
-  alert('配置保存成功！')
 }
 </script>
 
 <style scoped>
-.alertconfig-page {
+* {
+  box-sizing: border-box;
+}
+
+.alert-rule-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
-.config-grid {
+/* ==================== Header ==================== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title-icon {
+  width: 48px;
+  height: 48px;
+  padding: 10px;
+  background: linear-gradient(135deg, var(--accent-cyan), transparent);
+  border-radius: 12px;
+  color: var(--accent-cyan);
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* ==================== Action Buttons ==================== */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-cyan);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 16px var(--accent-cyan-glow);
+}
+
+.action-btn.primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px var(--accent-cyan-glow);
+}
+
+.action-btn.danger {
+  background: linear-gradient(135deg, var(--accent-red), #dc2626);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4);
+}
+
+/* ==================== Stats Grid ==================== */
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 
-.config-card {
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--card-accent), transparent);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--card-accent);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card.cyan { --card-accent: var(--accent-cyan); }
+.stat-card.green { --card-accent: var(--accent-green); }
+.stat-card.yellow { --card-accent: var(--accent-yellow); }
+.stat-card.purple { --card-accent: var(--accent-purple); }
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--card-accent), transparent);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-accent);
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.stat-progress {
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stat-progress-bar {
+  height: 100%;
+  background: var(--card-accent);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* ==================== Table Section ==================== */
+.table-section {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   overflow: hidden;
 }
 
-.config-card.full-width {
-  grid-column: span 2;
-}
-
-.card-header {
+.section-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color);
 }
 
-.card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+.section-title {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.card-icon.cyan { background: linear-gradient(135deg, var(--accent-cyan), #0891b2); }
-.card-icon.purple { background: linear-gradient(135deg, var(--accent-purple), #7c3aed); }
-.card-icon.green { background: linear-gradient(135deg, var(--accent-green), #059669); }
-.card-icon.yellow { background: linear-gradient(135deg, var(--accent-yellow), #d97706); }
-.card-icon.red { background: linear-gradient(135deg, var(--accent-red), #dc2626); }
-
-.card-title {
+  gap: 12px;
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.card-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.card-header .btn {
-  margin-left: auto;
-}
-
-.card-body {
-  padding: 24px;
-}
-
-/* Threshold Items */
-.threshold-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.threshold-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.threshold-item:first-child {
-  padding-top: 0;
-}
-
-.threshold-name {
-  font-weight: 500;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.threshold-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.threshold-inputs {
-  display: flex;
-  gap: 16px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.input-group label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.threshold-input {
-  width: 70px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
   color: var(--text-primary);
-  font-size: 14px;
-  font-family: 'JetBrains Mono', monospace;
-  text-align: center;
 }
 
-.threshold-input:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-}
-
-.threshold-input.warning:focus {
-  border-color: var(--accent-yellow);
-}
-
-.threshold-input.critical:focus {
-  border-color: var(--accent-red);
-}
-
-.input-unit {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* Toggle Items */
-.toggle-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.toggle-item:last-child {
-  border-bottom: none;
-}
-
-.toggle-info {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.toggle-icon {
-  width: 40px;
-  height: 40px;
-  background: var(--bg-tertiary);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.section-icon {
   color: var(--accent-cyan);
 }
 
-.toggle-name {
-  font-weight: 500;
-  display: block;
-  margin-bottom: 4px;
+.rules-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 6px 12px;
+  border-radius: 6px;
 }
 
-.toggle-desc {
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  background: var(--bg-tertiary);
+  padding: 14px 20px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr.disabled {
+  opacity: 0.5;
+}
+
+.data-table tr:hover:not(.disabled) {
+  background: var(--bg-tertiary);
+}
+
+.name-cell {
+  min-width: 180px;
+}
+
+.rule-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+}
+
+.rule-summary {
   font-size: 12px;
   color: var(--text-muted);
+  margin-top: 4px;
+  display: block;
 }
 
-.toggle-switch {
+.expr-cell {
+  max-width: 320px;
+}
+
+.expr-cell code {
+  background: var(--bg-tertiary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-cyan);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--border-color);
+}
+
+.duration-cell {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+}
+
+/* ==================== Severity Badge ==================== */
+.severity-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.severity-badge.info {
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+}
+
+.severity-badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+}
+
+.severity-badge.critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+/* ==================== Switch ==================== */
+.switch {
   position: relative;
-  width: 48px;
-  height: 26px;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
 }
 
-.toggle-switch input {
+.switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-.toggle-slider {
+.slider {
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -748,262 +799,126 @@ const saveConfig = () => {
   right: 0;
   bottom: 0;
   background: var(--bg-tertiary);
-  border-radius: 26px;
-  transition: 0.3s;
   border: 1px solid var(--border-color);
+  transition: 0.3s;
+  border-radius: 24px;
 }
 
-.toggle-slider::before {
-  content: '';
+.slider:before {
   position: absolute;
-  height: 20px;
-  width: 20px;
+  content: "";
+  height: 18px;
+  width: 18px;
   left: 2px;
   bottom: 2px;
   background: var(--text-muted);
-  border-radius: 50%;
   transition: 0.3s;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
-}
-
-.toggle-switch input:checked + .toggle-slider::before {
-  background: white;
-  transform: translateX(22px);
-}
-
-/* Rules Table */
-.rules-table {
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 60px 1fr 1fr 100px 100px 120px;
-  gap: 16px;
-  padding: 14px 20px;
-  background: var(--bg-tertiary);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.rule-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 1fr 100px 100px 120px;
-  gap: 16px;
-  padding: 16px 20px;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  transition: background 0.2s ease;
-}
-
-.rule-row:last-child {
-  border-bottom: none;
-}
-
-.rule-row:hover {
-  background: rgba(6, 182, 212, 0.04);
-}
-
-.status-indicator {
-  width: 10px;
-  height: 10px;
   border-radius: 50%;
 }
 
-.status-indicator.active {
-  background: var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green);
+.switch input:checked + .slider {
+  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+  border-color: transparent;
 }
 
-.status-indicator.inactive {
-  background: var(--text-muted);
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+  background: white;
 }
 
-.rule-name {
-  font-weight: 500;
-  display: block;
-  margin-bottom: 4px;
+/* ==================== Table Action Buttons ==================== */
+.action-cell {
+  white-space: nowrap;
 }
 
-.rule-desc {
-  font-size: 12px;
+.table-action-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
   color: var(--text-muted);
+  margin-right: 8px;
 }
 
-.condition-code {
-  padding: 6px 10px;
-  background: var(--bg-tertiary);
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
+.table-action-btn:last-child {
+  margin-right: 0;
+}
+
+.table-action-btn:hover {
+  color: var(--text-primary);
+}
+
+.table-action-btn.edit:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--accent-cyan);
   color: var(--accent-cyan);
 }
 
-.severity-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.severity-tag.critical {
+.table-action-btn.delete:hover {
   background: rgba(239, 68, 68, 0.15);
+  border-color: var(--accent-red);
   color: var(--accent-red);
 }
 
-.severity-tag.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
-}
-
-.severity-tag.info {
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
-}
-
-.duration-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-}
-
-.col-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.icon-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.icon-btn:hover {
-  background: var(--accent-cyan);
-  color: white;
-}
-
-.icon-btn.delete:hover {
-  background: var(--accent-red);
-}
-
-/* Form */
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.form-input, .form-select {
-  width: 100%;
-  padding: 12px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-family: inherit;
-  transition: all 0.2s ease;
-}
-
-.form-input:focus, .form-select:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px var(--accent-cyan-glow);
-}
-
-.form-select option {
-  background: var(--bg-secondary);
-}
-
-.time-range {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.time-input {
-  flex: 1;
-}
-
-.time-separator {
+/* ==================== Loading & Empty ==================== */
+.loading-cell,
+.empty-cell {
+  text-align: center;
+  padding: 64px 24px !important;
   color: var(--text-muted);
 }
 
-/* Advanced Items */
-.advanced-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border-color);
+.loading-spinner,
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.advanced-item:last-child {
-  border-bottom: none;
-}
-
-.advanced-name {
-  font-weight: 500;
+.empty-icon {
   display: block;
-  margin-bottom: 4px;
-}
-
-.advanced-desc {
-  font-size: 12px;
+  margin: 0 auto 16px;
   color: var(--text-muted);
 }
 
-/* Save Section */
-.save-section {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding-top: 8px;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Modal */
+/* ==================== Modal ==================== */
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(8px);
 }
 
-.rule-modal {
+.modal {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
-  width: 560px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 560px;
   max-height: 90vh;
-  overflow: hidden;
+  overflow: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-sm {
+  max-width: 420px;
 }
 
 .modal-header {
@@ -1014,23 +929,24 @@ const saveConfig = () => {
   border-bottom: 1px solid var(--border-color);
 }
 
-.modal-header h3 {
+.modal-header h2 {
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .close-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
   background: transparent;
+  border: none;
   color: var(--text-muted);
-  border-radius: 8px;
   cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
@@ -1040,8 +956,79 @@ const saveConfig = () => {
 
 .modal-body {
   padding: 24px;
-  max-height: 60vh;
-  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ==================== Form ==================== */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.required {
+  color: var(--accent-red);
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px var(--accent-cyan-glow);
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+
+.form-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+
+.form-group select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .form-row {
@@ -1050,75 +1037,104 @@ const saveConfig = () => {
   gap: 16px;
 }
 
-.severity-options {
-  display: flex;
-  gap: 12px;
-}
-
-.severity-option {
-  flex: 1;
-  display: flex;
+.checkbox-label {
+  display: flex !important;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  color: var(--text-primary) !important;
 }
 
-.severity-option input {
-  display: none;
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
 }
 
-.severity-option.active {
-  border-color: var(--accent-cyan);
-  background: rgba(6, 182, 212, 0.1);
+/* ==================== Confirm Modal ==================== */
+.confirm-text {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 15px;
 }
 
-.severity-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.severity-dot.critical { background: var(--accent-red); }
-.severity-dot.warning { background: var(--accent-yellow); }
-.severity-dot.info { background: var(--accent-cyan); }
-
-.condition-preview {
-  margin-top: 8px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-color);
-}
-
-.preview-code {
-  display: block;
-  padding: 14px 16px;
-  background: var(--bg-tertiary);
-  border-radius: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
+.confirm-text strong {
   color: var(--accent-cyan);
 }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
+.confirm-warning {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-/* Responsive */
+/* ==================== Toast ==================== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast.success {
+  background: linear-gradient(135deg, var(--accent-green), #059669);
+}
+
+.toast.error {
+  background: linear-gradient(135deg, var(--accent-red), #dc2626);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px) translateX(20px);
+}
+
+/* ==================== Responsive ==================== */
 @media (max-width: 1200px) {
-  .config-grid {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
   }
-  .config-card.full-width {
-    grid-column: span 1;
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 800px;
   }
 }
 </style>
