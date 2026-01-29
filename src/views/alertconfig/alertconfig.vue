@@ -131,11 +131,12 @@
             </tr>
             <tr v-for="rule in rules" :key="rule.id" :class="{ disabled: !rule.enabled }">
               <td class="name-cell">
-                <span class="rule-name">{{ rule.name }}</span>
+                <span class="rule-name">{{ rule.ruleName }}</span>
                 <span class="rule-summary" v-if="rule.summary">{{ rule.summary }}</span>
+                <span class="rule-description" v-if="rule.description">{{ rule.description }}</span>
               </td>
               <td class="expr-cell">
-                <code>{{ rule.expr }}</code>
+                <code>{{ rule.exprTemplate }}</code>
               </td>
               <td class="duration-cell">{{ rule.duration || '0s' }}</td>
               <td>
@@ -188,11 +189,11 @@
         <div class="modal-body">
           <div class="form-group">
             <label>规则名称 <span class="required">*</span></label>
-            <input v-model="form.name" type="text" placeholder="如：HighCpuUsage" />
+            <input v-model="form.ruleName" type="text" placeholder="如：HighCpuUsage" />
           </div>
           <div class="form-group">
             <label>PromQL 表达式 <span class="required">*</span></label>
-            <textarea v-model="form.expr" placeholder="如：100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"></textarea>
+            <textarea v-model="form.exprTemplate" placeholder="如：100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -247,7 +248,7 @@
         </div>
         <div class="modal-body">
           <p class="confirm-text">
-            确定要删除规则 <strong>{{ ruleToDelete?.name }}</strong> 吗？
+            确定要删除规则 <strong>{{ ruleToDelete?.ruleName }}</strong> 吗？
           </p>
           <p class="confirm-warning">此操作不可恢复</p>
         </div>
@@ -283,6 +284,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 
+// ✅ 使用相对路径，由 Vite 代理处理
 const API_BASE = '/api/alert-rules'
 
 export default {
@@ -298,15 +300,16 @@ export default {
     const publishing = ref(false)
     const ruleToDelete = ref(null)
 
+    // ✅ 修改字段名以匹配后端实体
     const form = reactive({
-      id: null,
-      name: '',
-      expr: '',
-      duration: '5m',
-      severity: 'warning',
-      summary: '',
-      description: '',
-      enabled: 1
+      id: '',
+      ruleName: '',           // 规则名称
+      exprTemplate: '',       // PromQL 表达式
+      duration: '',         // 持续时间
+      severity: '',    // 严重级别
+      summary: '',            // 摘要信息
+      description: '',        // 详细描述
+      enabled: 1              // 是否启用
     })
 
     const toast = reactive({
@@ -314,6 +317,16 @@ export default {
       message: '',
       type: 'success'
     })
+
+    const allRules = ref([])
+
+    const enabledRules = computed(() =>
+      allRules.value.filter(r => r.enabled === 1)
+    )
+
+    const disabledRules = computed(() =>
+      allRules.value.filter(r => r.enabled === 0)
+    )
 
     const enabledCount = computed(() => rules.value.filter(r => r.enabled === 1).length)
 
@@ -332,20 +345,24 @@ export default {
     const fetchRules = async () => {
       loading.value = true
       try {
-        const res = await axios.get(`${API_BASE}/enabled`)
+        // 直接获取全部规则
+        const res = await axios.get(API_BASE)
         rules.value = res.data
       } catch (e) {
+        console.error('Error fetching rules:', e)
         showToast('获取规则列表失败', 'error')
       } finally {
         loading.value = false
       }
     }
 
+
+    // ✅ 重置表单 - 清空所有字段
     const resetForm = () => {
       Object.assign(form, {
         id: null,
-        name: '',
-        expr: '',
+        ruleName: '',
+        exprTemplate: '',
         duration: '5m',
         severity: 'warning',
         summary: '',
@@ -360,8 +377,19 @@ export default {
       showModal.value = true
     }
 
+    // ✅ 编辑模态框 - 将规则数据加载到表单
     const openEditModal = (rule) => {
-      Object.assign(form, { ...rule })
+      // 深拷贝规则数据到表单，避免直接修改原数据
+      Object.assign(form, {
+        id: rule.id,
+        ruleName: rule.ruleName,
+        exprTemplate: rule.exprTemplate,
+        duration: rule.duration,
+        severity: rule.severity,
+        summary: rule.summary,
+        description: rule.description,
+        enabled: rule.enabled
+      })
       isEdit.value = true
       showModal.value = true
     }
@@ -372,22 +400,26 @@ export default {
     }
 
     const submitForm = async () => {
-      if (!form.name || !form.expr) {
+      // ✅ 验证必填字段 - 使用正确的字段名
+      if (!form.ruleName || !form.exprTemplate) {
         showToast('请填写必填项', 'error')
         return
       }
       submitting.value = true
       try {
         if (isEdit.value) {
+          // PUT 请求：更新规则
           await axios.put(API_BASE, form)
           showToast('规则更新成功')
         } else {
+          // POST 请求：新增规则
           await axios.post(API_BASE, form)
           showToast('规则创建成功')
         }
         closeModal()
         fetchRules()
       } catch (e) {
+        console.error('Error submitting form:', e)
         showToast('操作失败', 'error')
       } finally {
         submitting.value = false
@@ -403,6 +435,7 @@ export default {
         rule.enabled = newEnabled
         showToast(newEnabled ? '规则已启用' : '规则已停用')
       } catch (e) {
+        console.error('Error toggling enable:', e)
         showToast('操作失败', 'error')
       }
     }
@@ -420,6 +453,7 @@ export default {
         showDeleteConfirm.value = false
         fetchRules()
       } catch (e) {
+        console.error('Error deleting rule:', e)
         showToast('删除失败', 'error')
       } finally {
         deleting.value = false
@@ -432,6 +466,7 @@ export default {
         await axios.post(`${API_BASE}/publish`)
         showToast('规则发布成功')
       } catch (e) {
+        console.error('Error publishing rules:', e)
         showToast('发布失败', 'error')
       } finally {
         publishing.value = false

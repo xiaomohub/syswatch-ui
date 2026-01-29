@@ -16,9 +16,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // 后端地址
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/api/, '')
+        // 移除有问题的 rewrite，直接转发请求路径
+        // 这样 /api/alert-rules 会被转发到 http://localhost:8080/api/alert-rules
       }
     }
   }
