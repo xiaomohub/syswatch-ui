@@ -106,7 +106,9 @@
           <thead>
             <tr>
               <th>规则名称</th>
+              <th>指标代码</th>
               <th>PromQL 表达式</th>
+              <th>条件</th>
               <th>持续时间</th>
               <th>严重级别</th>
               <th>状态</th>
@@ -115,13 +117,13 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6" class="loading-cell">
+              <td colspan="8" class="loading-cell">
                 <div class="loading-spinner"></div>
                 <span>加载中...</span>
               </td>
             </tr>
             <tr v-else-if="rules.length === 0">
-              <td colspan="6" class="empty-cell">
+              <td colspan="8" class="empty-cell">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
@@ -133,10 +135,17 @@
               <td class="name-cell">
                 <span class="rule-name">{{ rule.ruleName }}</span>
                 <span class="rule-summary" v-if="rule.summary">{{ rule.summary }}</span>
-                <span class="rule-description" v-if="rule.description">{{ rule.description }}</span>
+              </td>
+              <td class="metric-cell">
+                <code>{{ rule.metricCode || '-' }}</code>
               </td>
               <td class="expr-cell">
                 <code>{{ rule.exprTemplate }}</code>
+              </td>
+              <td class="condition-cell">
+                <span class="condition-badge">
+                  {{ rule.comparator || '=' }} {{ rule.threshold || '-' }}
+                </span>
               </td>
               <td class="duration-cell">{{ rule.duration || '0s' }}</td>
               <td>
@@ -187,19 +196,57 @@
           </button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label>规则名称 <span class="required">*</span></label>
-            <input v-model="form.ruleName" type="text" placeholder="如：HighCpuUsage" />
+          <!-- 基本信息 -->
+          <div class="form-section">
+            <h3 class="section-title">基本信息</h3>
+            <div class="form-group">
+              <label>规则名称 <span class="required">*</span></label>
+              <input v-model="form.ruleName" type="text" placeholder="如：HighCpuUsage" />
+            </div>
+            <div class="form-group">
+              <label>资源类型</label>
+              <input v-model="form.resourceType" type="text" placeholder="如：host、pod、container" />
+            </div>
+            <div class="form-group">
+              <label>指标代码</label>
+              <input v-model="form.metricCode" type="text" placeholder="如：cpu_usage、memory_usage" />
+            </div>
           </div>
-          <div class="form-group">
-            <label>PromQL 表达式 <span class="required">*</span></label>
-            <textarea v-model="form.exprTemplate" placeholder="如：100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"></textarea>
-          </div>
-          <div class="form-row">
+
+          <!-- 告警条件 -->
+          <div class="form-section">
+            <h3 class="section-title">告警条件</h3>
+            <div class="form-group">
+              <label>PromQL 表达式 <span class="required">*</span></label>
+              <textarea v-model="form.exprTemplate" placeholder="如：100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>比较操作符</label>
+                <select v-model="form.comparator">
+                  <option value="">-- 选择操作符 --</option>
+                  <option value=">">&gt; (大于)</option>
+                  <option value="<">&lt; (小于)</option>
+                  <option value=">=">&gt;= (大于等于)</option>
+                  <option value="<=">&lt;= (小于等于)</option>
+                  <option value="==">==(等于)</option>
+                  <option value="!=">!= (不等于)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>阈值</label>
+                <input v-model="form.threshold" type="number" placeholder="如：80" step="0.01" />
+              </div>
+            </div>
             <div class="form-group">
               <label>持续时间</label>
               <input v-model="form.duration" type="text" placeholder="如：5m" />
             </div>
+          </div>
+
+          <!-- 告警信息 -->
+          <div class="form-section">
+            <h3 class="section-title">告警信息</h3>
             <div class="form-group">
               <label>严重级别</label>
               <select v-model="form.severity">
@@ -208,20 +255,24 @@
                 <option value="critical">严重</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>摘要信息</label>
+              <input v-model="form.summary" type="text" placeholder="告警摘要" />
+            </div>
+            <div class="form-group">
+              <label>详细描述</label>
+              <textarea v-model="form.description" placeholder="告警详细描述"></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label>摘要信息</label>
-            <input v-model="form.summary" type="text" placeholder="告警摘要" />
-          </div>
-          <div class="form-group">
-            <label>详细描述</label>
-            <textarea v-model="form.description" placeholder="告警详细描述"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="form.enabled" :true-value="1" :false-value="0" />
-              <span>启用规则</span>
-            </label>
+
+          <!-- 状态 -->
+          <div class="form-section">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="form.enabled" :true-value="1" :false-value="0" />
+                <span>启用规则</span>
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -284,7 +335,6 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 
-// ✅ 使用相对路径，由 Vite 代理处理
 const API_BASE = '/api/alert-rules'
 
 export default {
@@ -300,16 +350,19 @@ export default {
     const publishing = ref(false)
     const ruleToDelete = ref(null)
 
-    // ✅ 修改字段名以匹配后端实体
     const form = reactive({
-      id: '',
-      ruleName: '',           // 规则名称
-      exprTemplate: '',       // PromQL 表达式
-      duration: '',         // 持续时间
-      severity: '',    // 严重级别
-      summary: '',            // 摘要信息
-      description: '',        // 详细描述
-      enabled: 1              // 是否启用
+      id: null,
+      ruleName: '',
+      resourceType: '',
+      metricCode: '',
+      exprTemplate: '',
+      comparator: '',
+      threshold: null,
+      duration: '',
+      severity: 'warning',
+      summary: '',
+      description: '',
+      enabled: 1
     })
 
     const toast = reactive({
@@ -317,16 +370,6 @@ export default {
       message: '',
       type: 'success'
     })
-
-    const allRules = ref([])
-
-    const enabledRules = computed(() =>
-      allRules.value.filter(r => r.enabled === 1)
-    )
-
-    const disabledRules = computed(() =>
-      allRules.value.filter(r => r.enabled === 0)
-    )
 
     const enabledCount = computed(() => rules.value.filter(r => r.enabled === 1).length)
 
@@ -345,7 +388,6 @@ export default {
     const fetchRules = async () => {
       loading.value = true
       try {
-        // 直接获取全部规则
         const res = await axios.get(API_BASE)
         rules.value = res.data
       } catch (e) {
@@ -356,13 +398,15 @@ export default {
       }
     }
 
-
-    // ✅ 重置表单 - 清空所有字段
     const resetForm = () => {
       Object.assign(form, {
         id: null,
         ruleName: '',
+        resourceType: '',
+        metricCode: '',
         exprTemplate: '',
+        comparator: '',
+        threshold: null,
         duration: '5m',
         severity: 'warning',
         summary: '',
@@ -377,17 +421,19 @@ export default {
       showModal.value = true
     }
 
-    // ✅ 编辑模态框 - 将规则数据加载到表单
     const openEditModal = (rule) => {
-      // 深拷贝规则数据到表单，避免直接修改原数据
       Object.assign(form, {
         id: rule.id,
         ruleName: rule.ruleName,
+        resourceType: rule.resourceType || '',
+        metricCode: rule.metricCode || '',
         exprTemplate: rule.exprTemplate,
+        comparator: rule.comparator || '',
+        threshold: rule.threshold,
         duration: rule.duration,
         severity: rule.severity,
-        summary: rule.summary,
-        description: rule.description,
+        summary: rule.summary || '',
+        description: rule.description || '',
         enabled: rule.enabled
       })
       isEdit.value = true
@@ -400,27 +446,43 @@ export default {
     }
 
     const submitForm = async () => {
-      // ✅ 验证必填字段 - 使用正确的字段名
       if (!form.ruleName || !form.exprTemplate) {
         showToast('请填写必填项', 'error')
         return
       }
       submitting.value = true
       try {
+        // 构建完整的请求数据，确保所有字段都被发送
+        const payload = {
+          id: form.id,
+          ruleName: form.ruleName.trim(),
+          resourceType: form.resourceType ? form.resourceType.trim() : '',
+          metricCode: form.metricCode ? form.metricCode.trim() : '',
+          exprTemplate: form.exprTemplate.trim(),
+          comparator: form.comparator || '',  // 确保发送比较操作符
+          threshold: form.threshold !== null && form.threshold !== '' ? parseFloat(form.threshold) : null,  // 转换为数字
+          duration: form.duration ? form.duration.trim() : '',
+          severity: form.severity || 'warning',
+          summary: form.summary ? form.summary.trim() : '',
+          description: form.description ? form.description.trim() : '',
+          enabled: form.enabled ? 1 : 0
+        }
+        
+        console.log('Submitting payload:', payload)  // 调试日志
+        
         if (isEdit.value) {
-          // PUT 请求：更新规则
-          await axios.put(API_BASE, form)
+          await axios.put(API_BASE, payload)
           showToast('规则更新成功')
         } else {
-          // POST 请求：新增规则
-          await axios.post(API_BASE, form)
+          await axios.post(API_BASE, payload)
           showToast('规则创建成功')
         }
         closeModal()
         fetchRules()
       } catch (e) {
         console.error('Error submitting form:', e)
-        showToast('操作失败', 'error')
+        const errorMsg = e.response?.data?.message || '操作失败'
+        showToast(errorMsg, 'error')
       } finally {
         submitting.value = false
       }
@@ -623,7 +685,6 @@ export default {
 .stat-card.cyan { --card-accent: var(--accent-cyan); }
 .stat-card.green { --card-accent: var(--accent-green); }
 .stat-card.yellow { --card-accent: var(--accent-yellow); }
-.stat-card.purple { --card-accent: var(--accent-purple); }
 
 .stat-header {
   display: flex;
@@ -749,7 +810,7 @@ export default {
 }
 
 .name-cell {
-  min-width: 180px;
+  min-width: 140px;
 }
 
 .rule-name {
@@ -765,15 +826,25 @@ export default {
   display: block;
 }
 
+.metric-cell code {
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-yellow);
+  border: 1px solid var(--border-color);
+}
+
 .expr-cell {
-  max-width: 320px;
+  max-width: 280px;
 }
 
 .expr-cell code {
   background: var(--bg-tertiary);
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--accent-cyan);
   display: block;
@@ -781,6 +852,22 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
   border: 1px solid var(--border-color);
+}
+
+.condition-cell {
+  min-width: 120px;
+}
+
+.condition-badge {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(236, 72, 153, 0.1));
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: inline-block;
 }
 
 .duration-cell {
@@ -946,7 +1033,7 @@ export default {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   width: 90%;
-  max-width: 560px;
+  max-width: 620px;
   max-height: 90vh;
   overflow: auto;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -962,6 +1049,10 @@ export default {
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 10;
 }
 
 .modal-header h2 {
@@ -999,11 +1090,34 @@ export default {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  z-index: 10;
 }
 
 /* ==================== Form ==================== */
+.form-section {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-section:last-child {
+  border-bottom: none;
+}
+
+.form-section > .section-title {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
@@ -1019,14 +1133,15 @@ export default {
 }
 
 .form-group input[type="text"],
+.form-group input[type="number"],
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 13px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--text-primary);
   font-family: inherit;
   transition: all 0.2s;
@@ -1043,13 +1158,14 @@ export default {
   outline: none;
   border-color: var(--accent-cyan);
   box-shadow: 0 0 0 3px var(--accent-cyan-glow);
+  background: var(--bg-secondary);
 }
 
 .form-group textarea {
-  min-height: 100px;
+  min-height: 90px;
   resize: vertical;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .form-group select {
@@ -1057,8 +1173,8 @@ export default {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 40px;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 
 .form-group select option {
@@ -1078,6 +1194,7 @@ export default {
   gap: 10px;
   cursor: pointer;
   color: var(--text-primary) !important;
+  margin: 0 !important;
 }
 
 .checkbox-label input {
@@ -1169,7 +1286,11 @@ export default {
   }
 
   .data-table {
-    min-width: 800px;
+    min-width: 900px;
+  }
+  
+  .modal {
+    max-width: 95vw;
   }
 }
 </style>

@@ -12,9 +12,6 @@
         <div class="alert-stat-icon" v-html="stat.icon"></div>
         <div class="alert-stat-value">{{ stat.count }}</div>
         <div class="alert-stat-label">{{ stat.label }}</div>
-        <div class="alert-stat-change" :class="stat.trend > 0 ? 'up' : 'down'">
-          {{ stat.trend > 0 ? '+' : '' }}{{ stat.trend }} 较昨日
-        </div>
       </div>
     </div>
 
@@ -28,46 +25,40 @@
           </svg>
           <input 
             type="text" 
-            placeholder="搜索告警..." 
+            placeholder="搜索告警名称..." 
             v-model="searchQuery"
             class="search-input"
           >
         </div>
         <select class="filter-select" v-model="severityFilter">
-          <option value="all">全部级别</option>
+          <option value="">全部级别</option>
           <option value="critical">严重</option>
           <option value="warning">警告</option>
           <option value="info">提示</option>
         </select>
-        <select class="filter-select" v-model="statusFilter">
-          <option value="all">全部状态</option>
-          <option value="active">活动中</option>
-          <option value="resolved">已解决</option>
-          <option value="acknowledged">已确认</option>
-        </select>
-        <select class="filter-select" v-model="timeFilter">
-          <option value="1h">最近 1 小时</option>
-          <option value="6h">最近 6 小时</option>
-          <option value="24h">最近 24 小时</option>
-          <option value="7d">最近 7 天</option>
-        </select>
+        <input 
+          type="datetime-local" 
+          class="filter-select"
+          v-model="startTimeFilter"
+          placeholder="开始时间"
+        >
+        <input 
+          type="datetime-local" 
+          class="filter-select"
+          v-model="endTimeFilter"
+          placeholder="结束时间"
+        >
       </div>
       <div class="action-group">
-        <button class="btn btn-secondary" @click="refreshAlerts">
+        <button class="btn btn-secondary" @click="loadAlerts" :disabled="loading">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"/>
             <polyline points="1 20 1 14 7 14"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
-          刷新
+          {{ loading ? '加载中...' : '刷新' }}
         </button>
-        <button class="btn btn-secondary" @click="acknowledgeSelected" :disabled="selectedAlerts.length === 0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          批量确认 ({{ selectedAlerts.length }})
-        </button>
-        <button class="btn btn-primary" @click="exportAlerts">
+        <button class="btn btn-primary" @click="exportAlerts" :disabled="!alertData.records || alertData.records.length === 0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -81,14 +72,11 @@
     <!-- Alert List -->
     <div class="alert-list-section">
       <div class="alert-list-header">
-        <label class="checkbox-cell">
-          <input type="checkbox" @change="toggleSelectAll" :checked="isAllSelected">
-          <span class="checkmark"></span>
-        </label>
         <span class="header-cell severity">级别</span>
         <span class="header-cell title">告警内容</span>
-        <span class="header-cell source">来源</span>
-        <span class="header-cell time">时间</span>
+        <span class="header-cell name">告警名称</span>
+        <span class="header-cell time">触发时间</span>
+        <span class="header-cell time">恢复时间</span>
         <span class="header-cell status">状态</span>
         <span class="header-cell actions">操作</span>
       </div>
@@ -96,33 +84,31 @@
       <div class="alert-list">
         <div 
           class="alert-item" 
-          v-for="alert in filteredAlerts" 
+          v-for="alert in alertData.records" 
           :key="alert.id"
-          :class="{ 'selected': selectedAlerts.includes(alert.id) }"
         >
-          <label class="checkbox-cell">
-            <input type="checkbox" :value="alert.id" v-model="selectedAlerts">
-            <span class="checkmark"></span>
-          </label>
           <div class="severity-cell">
             <span class="severity-badge" :class="alert.severity">
               {{ getSeverityLabel(alert.severity) }}
             </span>
           </div>
           <div class="title-cell">
-            <div class="alert-title">{{ alert.title }}</div>
-            <div class="alert-host">{{ alert.host }}</div>
+            <div class="alert-title">{{ alert.summary }}</div>
+            <div class="alert-description">{{ alert.description }}</div>
           </div>
-          <div class="source-cell">
-            <span class="source-tag">{{ alert.source }}</span>
+          <div class="name-cell">
+            <span class="name-tag">{{ alert.alertName }}</span>
           </div>
           <div class="time-cell">
-            <div class="alert-time">{{ alert.time }}</div>
-            <div class="alert-duration">持续 {{ alert.duration }}</div>
+            <div class="alert-time">{{ formatTime(alert.startsAt) }}</div>
+          </div>
+          <div class="time-cell">
+            <div class="alert-time" v-if="alert.endsAt">{{ formatTime(alert.endsAt) }}</div>
+            <div class="alert-time" v-else style="color: var(--text-muted);">-</div>
           </div>
           <div class="status-cell">
-            <span class="status-badge" :class="alert.status">
-              {{ getStatusLabel(alert.status) }}
+            <span class="status-badge" :class="getStatusClass(alert)">
+              {{ getStatusLabel(alert.status, alert.endsAt) }}
             </span>
           </div>
           <div class="actions-cell">
@@ -132,37 +118,30 @@
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </button>
-            <button class="icon-btn" @click="acknowledgeAlert(alert.id)" title="确认告警" v-if="alert.status === 'active'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-            <button class="icon-btn" @click="resolveAlert(alert.id)" title="解决告警" v-if="alert.status !== 'resolved'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="16 12 12 8 8 12"/>
-                <line x1="12" y1="16" x2="12" y2="8"/>
-              </svg>
-            </button>
           </div>
         </div>
 
-        <div class="empty-state" v-if="filteredAlerts.length === 0">
+        <div class="empty-state" v-if="!loading && (!alertData.records || alertData.records.length === 0)">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
           <p>暂无告警记录</p>
         </div>
+
+        <div class="loading-state" v-if="loading">
+          <div class="spinner"></div>
+          <p>加载中...</p>
+        </div>
       </div>
 
       <!-- Pagination -->
-      <div class="pagination" v-if="filteredAlerts.length > 0">
+      <div class="pagination" v-if="!loading && alertData.records && alertData.records.length > 0">
         <span class="pagination-info">
-          共 {{ totalAlerts }} 条告警，当前显示 {{ (currentPage - 1) * pageSize + 1 }}-{{ Math.min(currentPage * pageSize, totalAlerts) }} 条
+          共 {{ alertData.total }} 条告警，当前显示第 {{ alertData.current }} 页
         </span>
         <div class="pagination-controls">
-          <button class="page-btn" :disabled="currentPage === 1" @click="currentPage--">
+          <button class="page-btn" :disabled="alertData.current === 1" @click="currentPage--">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
@@ -172,13 +151,13 @@
               v-for="page in displayPages" 
               :key="page"
               class="page-num"
-              :class="{ active: page === currentPage }"
+              :class="{ active: page === alertData.current }"
               @click="currentPage = page"
             >
               {{ page }}
             </button>
           </span>
-          <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage++">
+          <button class="page-btn" :disabled="alertData.current >= alertData.pages" @click="currentPage++">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
@@ -202,47 +181,62 @@
           </div>
           <div class="modal-body" v-if="selectedAlert">
             <div class="detail-row">
+              <span class="detail-label">告警ID</span>
+              <span class="detail-value mono">{{ selectedAlert.id }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">告警名称</span>
+              <span class="detail-value">{{ selectedAlert.alertName }}</span>
+            </div>
+            <div class="detail-row">
               <span class="detail-label">告警级别</span>
               <span class="severity-badge" :class="selectedAlert.severity">
                 {{ getSeverityLabel(selectedAlert.severity) }}
               </span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">告警内容</span>
-              <span class="detail-value">{{ selectedAlert.title }}</span>
+              <span class="detail-label">状态</span>
+              <span class="status-badge" :class="getStatusClass(selectedAlert)">
+                {{ getStatusLabel(selectedAlert.status, selectedAlert.endsAt) }}
+              </span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">主机</span>
-              <span class="detail-value mono">{{ selectedAlert.host }}</span>
+              <span class="detail-label">摘要</span>
+              <span class="detail-value">{{ selectedAlert.summary }}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">来源</span>
-              <span class="source-tag">{{ selectedAlert.source }}</span>
+            <div class="detail-section">
+              <span class="detail-label">描述</span>
+              <p class="detail-description">{{ selectedAlert.description || '暂无详细描述' }}</p>
             </div>
             <div class="detail-row">
               <span class="detail-label">触发时间</span>
-              <span class="detail-value mono">{{ selectedAlert.time }}</span>
+              <span class="detail-value mono">{{ formatTime(selectedAlert.startsAt) }}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">持续时间</span>
-              <span class="detail-value">{{ selectedAlert.duration }}</span>
+            <div class="detail-row" v-if="selectedAlert.endsAt">
+              <span class="detail-label">恢复时间</span>
+              <span class="detail-value mono">{{ formatTime(selectedAlert.endsAt) }}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">状态</span>
-              <span class="status-badge" :class="selectedAlert.status">
-                {{ getStatusLabel(selectedAlert.status) }}
-              </span>
+            <div class="detail-section" v-if="parsedLabels">
+              <span class="detail-label">标签 (Labels)</span>
+              <div class="tags-container">
+                <span class="label-tag" v-for="(value, key) in parsedLabels" :key="key">
+                  <span class="tag-key">{{ key }}</span>
+                  <span class="tag-value">{{ value }}</span>
+                </span>
+              </div>
             </div>
-            <div class="detail-section">
-              <span class="detail-label">详细描述</span>
-              <p class="detail-description">{{ selectedAlert.description || '暂无详细描述' }}</p>
+            <div class="detail-section" v-if="parsedAnnotations">
+              <span class="detail-label">注解 (Annotations)</span>
+              <div class="tags-container">
+                <span class="label-tag" v-for="(value, key) in parsedAnnotations" :key="key">
+                  <span class="tag-key">{{ key }}</span>
+                  <span class="tag-value">{{ value }}</span>
+                </span>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
-            <button class="btn btn-primary" @click="acknowledgeAlert(selectedAlert?.id); showDetailModal = false">
-              确认告警
-            </button>
           </div>
         </div>
       </div>
@@ -251,124 +245,227 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
+
+// API base URL
+const API_BASE_URL = '/api/alerts'
 
 // Alert stats
 const alertStats = ref([
   {
     type: 'critical',
     label: '严重告警',
-    count: 3,
-    trend: 1,
+    count: 0,
     icon: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
   },
   {
     type: 'warning',
     label: '警告告警',
-    count: 8,
-    trend: -2,
+    count: 0,
     icon: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
   },
   {
     type: 'info',
     label: '提示告警',
-    count: 15,
-    trend: 3,
+    count: 0,
     icon: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
   },
   {
     type: 'resolved',
     label: '已解决',
-    count: 42,
-    trend: 5,
+    count: 0,
     icon: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
   }
 ])
 
 // Filters
 const searchQuery = ref('')
-const severityFilter = ref('all')
-const statusFilter = ref('all')
-const timeFilter = ref('24h')
-
-// Selection
-const selectedAlerts = ref([])
-const showDetailModal = ref(false)
-const selectedAlert = ref(null)
+const severityFilter = ref('')
+const startTimeFilter = ref('')
+const endTimeFilter = ref('')
 
 // Pagination
 const currentPage = ref(1)
-const pageSize = 10
+const pageSize = ref(10)
 
-// Alerts data
-const alerts = ref([
-  { id: 1, title: 'CPU 使用率超过阈值 (95%)', host: 'node-01.example.com', source: 'prometheus', time: '2024-01-15 14:32:18', duration: '15分钟', severity: 'critical', status: 'active', description: 'CPU使用率持续超过95%，可能导致系统响应缓慢。建议检查是否有异常进程占用大量CPU资源。' },
-  { id: 2, title: '内存使用率告警 (88%)', host: 'node-03.example.com', source: 'prometheus', time: '2024-01-15 14:28:45', duration: '23分钟', severity: 'critical', status: 'active', description: '内存使用率达到88%，接近告警阈值。' },
-  { id: 3, title: 'Database 连接池即将耗尽', host: 'db-master.example.com', source: 'mysql-exporter', time: '2024-01-15 14:25:12', duration: '28分钟', severity: 'critical', status: 'acknowledged', description: '数据库连接池使用率超过90%。' },
-  { id: 4, title: '磁盘空间不足 (82%)', host: 'node-02.example.com', source: 'node-exporter', time: '2024-01-15 14:20:33', duration: '35分钟', severity: 'warning', status: 'active', description: '磁盘使用率达到82%，建议清理无用文件。' },
-  { id: 5, title: 'API 响应时间增加', host: 'api-gateway.example.com', source: 'blackbox-exporter', time: '2024-01-15 14:15:22', duration: '40分钟', severity: 'warning', status: 'active', description: 'API平均响应时间从200ms增加到800ms。' },
-  { id: 6, title: '网络延迟升高', host: 'edge-router.example.com', source: 'prometheus', time: '2024-01-15 14:10:08', duration: '45分钟', severity: 'warning', status: 'acknowledged', description: '网络延迟从5ms增加到50ms。' },
-  { id: 7, title: 'SSL证书即将过期', host: 'web-server.example.com', source: 'blackbox-exporter', time: '2024-01-15 14:05:00', duration: '50分钟', severity: 'warning', status: 'active', description: 'SSL证书将在7天后过期。' },
-  { id: 8, title: '容器重启次数增加', host: 'k8s-worker-01', source: 'cadvisor', time: '2024-01-15 14:00:55', duration: '55分钟', severity: 'info', status: 'active', description: '容器在过去1小时内重启了3次。' },
-  { id: 9, title: '定时任务执行完成', host: 'scheduler.example.com', source: 'cron-exporter', time: '2024-01-15 13:55:00', duration: '1小时', severity: 'info', status: 'resolved', description: '每日备份任务已完成。' },
-  { id: 10, title: '新节点加入集群', host: 'node-05.example.com', source: 'kubernetes', time: '2024-01-15 13:50:00', duration: '1小时5分', severity: 'info', status: 'resolved', description: '新节点已成功加入Kubernetes集群。' },
-])
+// Modal
+const showDetailModal = ref(false)
+const selectedAlert = ref(null)
 
-// Computed
-const filteredAlerts = computed(() => {
-  return alerts.value.filter(alert => {
-    const matchSearch = !searchQuery.value || 
-      alert.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      alert.host.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchSeverity = severityFilter.value === 'all' || alert.severity === severityFilter.value
-    const matchStatus = statusFilter.value === 'all' || alert.status === statusFilter.value
-    return matchSearch && matchSeverity && matchStatus
-  })
+// Data
+const alertData = ref({
+  records: [],
+  total: 0,
+  current: 1,
+  pages: 1
 })
 
-const totalAlerts = computed(() => filteredAlerts.value.length)
-const totalPages = computed(() => Math.ceil(totalAlerts.value / pageSize))
+const loading = ref(false)
 
+// Computed
 const displayPages = computed(() => {
   const pages = []
-  for (let i = 1; i <= totalPages.value; i++) {
+  const totalPages = alertData.value.pages || 1
+  const current = alertData.value.current || 1
+  
+  for (let i = Math.max(1, current - 2); i <= Math.min(totalPages, current + 2); i++) {
     pages.push(i)
   }
   return pages
 })
 
-const isAllSelected = computed(() => {
-  return filteredAlerts.value.length > 0 && 
-    filteredAlerts.value.every(a => selectedAlerts.value.includes(a.id))
+const parsedLabels = computed(() => {
+  if (!selectedAlert.value?.labels) return null
+  try {
+    return typeof selectedAlert.value.labels === 'string' 
+      ? JSON.parse(selectedAlert.value.labels) 
+      : selectedAlert.value.labels
+  } catch {
+    return null
+  }
+})
+
+const parsedAnnotations = computed(() => {
+  if (!selectedAlert.value?.annotations) return null
+  try {
+    return typeof selectedAlert.value.annotations === 'string' 
+      ? JSON.parse(selectedAlert.value.annotations) 
+      : selectedAlert.value.annotations
+  } catch {
+    return null
+  }
 })
 
 // Methods
 const getSeverityLabel = (severity) => {
-  const labels = { critical: '严重', warning: '警告', info: '提示' }
+  const labels = { 
+    critical: '严重', 
+    warning: '警告', 
+    info: '提示',
+    error: '错误'
+  }
   return labels[severity] || severity
 }
 
-const getStatusLabel = (status) => {
-  const labels = { active: '活动中', resolved: '已解决', acknowledged: '已确认' }
-  return labels[status] || status
+const getStatusLabel = (status, endsAt) => {
+  if (status === 'firing' || !endsAt) {
+    return '活动中'
+  } else if (status === 'resolved' || endsAt) {
+    return '已解决'
+  }
+  return status
+}
+
+const getStatusClass = (alert) => {
+  if (alert.status === 'firing' || !alert.endsAt) {
+    return 'active'
+  } else if (alert.status === 'resolved' || alert.endsAt) {
+    return 'resolved'
+  }
+  return 'active'
+}
+
+const formatTime = (dateString) => {
+  if (!dateString) return '-'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch {
+    return dateString
+  }
+}
+
+const loadAlerts = async () => {
+  loading.value = true
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
+
+    if (searchQuery.value) {
+      params.alertName = searchQuery.value
+    }
+    if (severityFilter.value) {
+      params.severity = severityFilter.value
+    }
+    if (startTimeFilter.value) {
+      params.startTime = new Date(startTimeFilter.value).toISOString()
+    }
+    if (endTimeFilter.value) {
+      params.endTime = new Date(endTimeFilter.value).toISOString()
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/history`, { params })
+    
+    // 处理分页数据结构
+    alertData.value = {
+      records: response.data.records || [],
+      total: response.data.total || 0,
+      current: response.data.current || currentPage.value,
+      pages: response.data.pages || 1
+    }
+
+    // 更新统计数据
+    updateStats(response.data.records || [])
+  } catch (error) {
+    console.error('加载告警失败:', error)
+    alertData.value = {
+      records: [],
+      total: 0,
+      current: 1,
+      pages: 1
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateStats = (records) => {
+  const stats = {
+    critical: 0,
+    warning: 0,
+    info: 0,
+    resolved: 0
+  }
+
+  records.forEach(alert => {
+    if (alert.status === 'resolved' || alert.endsAt) {
+      stats.resolved++
+    } else if (alert.severity === 'critical') {
+      stats.critical++
+    } else if (alert.severity === 'warning') {
+      stats.warning++
+    } else if (alert.severity === 'info') {
+      stats.info++
+    }
+  })
+
+  alertStats.value.forEach(stat => {
+    if (stat.type === 'critical') stat.count = stats.critical
+    else if (stat.type === 'warning') stat.count = stats.warning
+    else if (stat.type === 'info') stat.count = stats.info
+    else if (stat.type === 'resolved') stat.count = stats.resolved
+  })
 }
 
 const filterBySeverity = (type) => {
   if (type === 'resolved') {
-    statusFilter.value = 'resolved'
-    severityFilter.value = 'all'
+    // 已解决的告警处理逻辑
+    severityFilter.value = ''
   } else {
     severityFilter.value = type
-    statusFilter.value = 'all'
   }
-}
-
-const toggleSelectAll = (e) => {
-  if (e.target.checked) {
-    selectedAlerts.value = filteredAlerts.value.map(a => a.id)
-  } else {
-    selectedAlerts.value = []
-  }
+  currentPage.value = 1
+  loadAlerts()
 }
 
 const viewDetail = (alert) => {
@@ -376,34 +473,51 @@ const viewDetail = (alert) => {
   showDetailModal.value = true
 }
 
-const acknowledgeAlert = (id) => {
-  const alert = alerts.value.find(a => a.id === id)
-  if (alert) {
-    alert.status = 'acknowledged'
-  }
-}
-
-const resolveAlert = (id) => {
-  const alert = alerts.value.find(a => a.id === id)
-  if (alert) {
-    alert.status = 'resolved'
-  }
-}
-
-const acknowledgeSelected = () => {
-  selectedAlerts.value.forEach(id => acknowledgeAlert(id))
-  selectedAlerts.value = []
-}
-
-const refreshAlerts = () => {
-  // 模拟刷新
-  console.log('Refreshing alerts...')
-}
-
 const exportAlerts = () => {
-  // 模拟导出
-  alert('告警报告导出成功！')
+  if (!alertData.value.records || alertData.value.records.length === 0) {
+    alert('暂无数据可导出')
+    return
+  }
+
+  // 构建CSV数据
+  const headers = ['告警ID', '告警名称', '级别', '摘要', '触发时间', '恢复时间', '状态']
+  const rows = alertData.value.records.map(alert => [
+    alert.id,
+    alert.alertName,
+    getSeverityLabel(alert.severity),
+    alert.summary,
+    formatTime(alert.startsAt),
+    alert.endsAt ? formatTime(alert.endsAt) : '-',
+    getStatusLabel(alert.status, alert.endsAt)
+  ])
+
+  const csv = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+
+  // 下载CSV文件
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', `alerts_${new Date().getTime()}.csv`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
+
+// Lifecycle
+onMounted(() => {
+  loadAlerts()
+})
+
+// Watch for pagination changes
+import { watch } from 'vue'
+watch(currentPage, () => {
+  loadAlerts()
+})
 </script>
 
 <style scoped>
@@ -477,24 +591,6 @@ const exportAlerts = () => {
   margin-top: 4px;
 }
 
-.alert-stat-change {
-  font-size: 12px;
-  margin-top: 12px;
-  padding: 4px 12px;
-  border-radius: 12px;
-  display: inline-block;
-}
-
-.alert-stat-change.up {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--accent-red);
-}
-
-.alert-stat-change.down {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--accent-green);
-}
-
 /* Toolbar */
 .alert-toolbar {
   display: flex;
@@ -548,6 +644,12 @@ const exportAlerts = () => {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  min-width: 150px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
 }
 
 .filter-select option {
@@ -569,7 +671,7 @@ const exportAlerts = () => {
 
 .alert-list-header {
   display: grid;
-  grid-template-columns: 40px 80px 1fr 120px 140px 100px 100px;
+  grid-template-columns: 80px 1fr 150px 150px 150px 100px 100px;
   gap: 16px;
   padding: 16px 24px;
   background: var(--bg-tertiary);
@@ -588,7 +690,7 @@ const exportAlerts = () => {
 
 .alert-item {
   display: grid;
-  grid-template-columns: 40px 80px 1fr 120px 140px 100px 100px;
+  grid-template-columns: 80px 1fr 150px 150px 150px 100px 100px;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
@@ -602,47 +704,6 @@ const exportAlerts = () => {
 
 .alert-item:hover {
   background: rgba(6, 182, 212, 0.04);
-}
-
-.alert-item.selected {
-  background: rgba(6, 182, 212, 0.08);
-}
-
-/* Checkbox */
-.checkbox-cell {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.checkbox-cell input {
-  display: none;
-}
-
-.checkmark {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-color);
-  border-radius: 4px;
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.checkbox-cell input:checked + .checkmark {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
-}
-
-.checkbox-cell input:checked + .checkmark::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
 }
 
 /* Badges */
@@ -688,12 +749,7 @@ const exportAlerts = () => {
   color: var(--accent-green);
 }
 
-.status-badge.acknowledged {
-  background: rgba(139, 92, 246, 0.15);
-  color: var(--accent-purple);
-}
-
-.source-tag {
+.name-tag {
   display: inline-block;
   padding: 4px 10px;
   background: var(--bg-tertiary);
@@ -716,10 +772,12 @@ const exportAlerts = () => {
   text-overflow: ellipsis;
 }
 
-.alert-host {
+.alert-description {
   font-size: 12px;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .time-cell {
@@ -728,11 +786,10 @@ const exportAlerts = () => {
 
 .alert-time {
   font-family: 'JetBrains Mono', monospace;
-  margin-bottom: 2px;
 }
 
-.alert-duration {
-  color: var(--text-muted);
+.name-cell {
+  font-size: 12px;
 }
 
 .actions-cell {
@@ -769,6 +826,27 @@ const exportAlerts = () => {
 .empty-state svg {
   margin-bottom: 16px;
   opacity: 0.5;
+}
+
+/* Loading State */
+.loading-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Pagination */
@@ -857,7 +935,7 @@ const exportAlerts = () => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 20px;
-  width: 520px;
+  width: 600px;
   max-height: 80vh;
   overflow: hidden;
 }
@@ -896,7 +974,7 @@ const exportAlerts = () => {
 
 .modal-body {
   padding: 24px;
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
 }
 
@@ -908,21 +986,24 @@ const exportAlerts = () => {
   border-bottom: 1px solid var(--border-color);
 }
 
-.detail-row:last-child {
+.detail-row:last-of-type:not(.detail-section) {
   border-bottom: none;
 }
 
 .detail-label {
   font-size: 13px;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .detail-value {
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .detail-value.mono {
   font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-cyan);
 }
 
 .detail-section {
@@ -941,6 +1022,35 @@ const exportAlerts = () => {
   padding: 16px;
   background: var(--bg-tertiary);
   border-radius: 10px;
+  margin: 0;
+}
+
+.tags-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label-tag {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.tag-key {
+  color: var(--accent-cyan);
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.tag-value {
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  word-break: break-all;
 }
 
 .modal-footer {
@@ -949,6 +1059,47 @@ const exportAlerts = () => {
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid var(--border-color);
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--accent-cyan);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #06b6d4;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Responsive */
@@ -961,11 +1112,39 @@ const exportAlerts = () => {
 @media (max-width: 1200px) {
   .alert-list-header,
   .alert-item {
-    grid-template-columns: 40px 70px 1fr 100px 80px;
+    grid-template-columns: 70px 1fr 120px 80px;
   }
-  .source-cell,
+  .name-cell,
   .actions-cell {
     display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .alert-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    flex-direction: column;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .action-group {
+    flex-direction: column;
+  }
+
+  .alert-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-modal {
+    width: 95%;
+    max-width: 600px;
   }
 }
 </style>

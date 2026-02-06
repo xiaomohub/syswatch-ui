@@ -37,6 +37,12 @@ const routes = [
         name: 'Notify',
         component: () => import('../views/notify/notify.vue'),
         meta: { title: '通知管理' }
+      },
+      {
+        path: 'logquery',
+        name: 'logquery',
+        component: () => import('../views/logquery/LogQuery.vue'),
+        meta: {title: '日志查询'}
       }
     ]
   }

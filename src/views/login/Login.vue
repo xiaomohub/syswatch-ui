@@ -43,7 +43,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import request from '@/api/request'
+import axios from 'axios'
 import { useUserStore } from '@/store/user'
 import router from '@/router'
 
@@ -58,14 +58,20 @@ const doLogin = async () => {
   loading.value = true
 
   try {
-    const token = await request.post('/auth/login', {
+    // 这里走 Vite 代理，路径以 /api 开头
+    const res = await axios.post('/api/auth/login', {
       username: username.value,
       password: password.value
     })
+    
+    // 根据后端返回的字段存 token
+    const token = res.data.token
     userStore.setToken(token)
+    
     router.push('/dashboard')
   } catch (e) {
-    error.value = e.response?.data || e.message || '登录失败'
+    // 兼容后端返回对象或字符串
+    error.value = e.response?.data?.message || e.response?.data || e.message || '登录失败'
   } finally {
     loading.value = false
   }
