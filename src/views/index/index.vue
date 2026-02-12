@@ -41,7 +41,6 @@
             </svg>
           </span>
           <span class="nav-text">告警统计</span>
-          <span class="nav-badge" v-if="alertCount > 0">{{ alertCount }}</span>
         </router-link>
 
         <router-link to="/alertconfig" class="nav-item" active-class="active">
@@ -146,7 +145,6 @@ const router = useRouter()
 
 const showLogoutModal = ref(false)
 const currentTime = ref('')
-const alertCount = ref(11)
 
 // User info
 const userName = ref('Admin')
