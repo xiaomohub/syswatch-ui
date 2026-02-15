@@ -398,11 +398,12 @@ const loadAlerts = async () => {
       params.severity = severityFilter.value
     }
     if (startTimeFilter.value) {
-      params.startTime = new Date(startTimeFilter.value).toISOString()
+    params.startTime = startTimeFilter.value
     }
     if (endTimeFilter.value) {
-      params.endTime = new Date(endTimeFilter.value).toISOString()
+      params.endTime = endTimeFilter.value
     }
+
 
     const response = await axios.get(`${API_BASE_URL}/history`, { params })
     
