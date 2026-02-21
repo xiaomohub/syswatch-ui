@@ -33,16 +33,16 @@ const routes = [
         meta: { title: '告警配置' }
       },
       {
-        path: 'notify',
-        name: 'Notify',
-        component: () => import('../views/notify/notify.vue'),
-        meta: { title: '通知管理' }
+        path: 'alertsilence',
+        name: 'AlertSilence',
+        component: () => import('../views/alertsilence/AlertSilence.vue'),
+        meta: { title: '告警静默' }
       },
       {
         path: 'logquery',
         name: 'logquery',
         component: () => import('../views/logquery/LogQuery.vue'),
-        meta: {title: '日志查询'}
+        meta: { title: '日志查询' }
       }
     ]
   }
@@ -58,10 +58,8 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   
   if (to.meta.requiresAuth !== false && !token) {
-    // 需要登录但未登录，跳转到登录页
     next('/login')
   } else if (to.path === '/login' && token) {
-    // 已登录访问登录页，跳转到首页
     next('/dashboard')
   } else {
     next()

@@ -66,6 +66,23 @@
           <span class="nav-text">日志查询</span>
         </router-link>
       </nav>
+        <!-- 添加新的导航分组标签 -->
+        <div class="nav-label">告警管理</div>
+
+        <!-- 告警静默 -->
+        <router-link to="/alertsilence" class="nav-item" active-class="active">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </span>
+          <span class="nav-text">告警静默</span>
+        </router-link>
+
+
+
 
       <div class="user-section">
         <div class="user-card">
@@ -146,6 +163,8 @@ const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',
+    '/alertsilence': '告警静默',
+    '/alertinhibit': '告警抑制',
     '/alertconfig': '告警配置',
     '/logquery': '日志查询'
   }
