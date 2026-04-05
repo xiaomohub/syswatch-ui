@@ -333,7 +333,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
-import axios from 'axios'
+import http from '@/utils/http'
 
 const API_BASE = '/api/alert-rules'
 
@@ -388,7 +388,7 @@ export default {
     const fetchRules = async () => {
       loading.value = true
       try {
-        const res = await axios.get(API_BASE)
+        const res = await http.get(API_BASE)
         rules.value = res.data
       } catch (e) {
         console.error('Error fetching rules:', e)
@@ -471,10 +471,10 @@ export default {
         console.log('Submitting payload:', payload)  // 调试日志
         
         if (isEdit.value) {
-          await axios.put(API_BASE, payload)
+          await http.put(API_BASE, payload)
           showToast('规则更新成功')
         } else {
-          await axios.post(API_BASE, payload)
+          await http.post(API_BASE, payload)
           showToast('规则创建成功')
         }
         closeModal()
@@ -491,7 +491,7 @@ export default {
     const toggleEnable = async (rule) => {
       const newEnabled = rule.enabled === 1 ? 0 : 1
       try {
-        await axios.post(`${API_BASE}/${rule.id}/enable`, null, {
+        await http.post(`${API_BASE}/${rule.id}/enable`, null, {
           params: { enabled: newEnabled }
         })
         rule.enabled = newEnabled
@@ -510,7 +510,7 @@ export default {
     const deleteRule = async () => {
       deleting.value = true
       try {
-        await axios.delete(`${API_BASE}/${ruleToDelete.value.id}`)
+        await http.delete(`${API_BASE}/${ruleToDelete.value.id}`)
         showToast('规则已删除')
         showDeleteConfirm.value = false
         fetchRules()
@@ -525,7 +525,7 @@ export default {
     const publishAll = async () => {
       publishing.value = true
       try {
-        await axios.post(`${API_BASE}/publish`)
+        await http.post(`${API_BASE}/publish`)
         showToast('规则发布成功')
       } catch (e) {
         console.error('Error publishing rules:', e)

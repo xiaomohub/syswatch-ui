@@ -5,200 +5,319 @@
       <div class="stat-card" v-for="stat in stats" :key="stat.label" :class="stat.color">
         <div class="stat-header">
           <div class="stat-icon" v-html="stat.icon"></div>
-          <span class="stat-trend" :class="stat.trend.type">
-            {{ stat.trend.type === 'up' ? '↑' : '↓' }} {{ stat.trend.value }}
+          <span class="stat-trend" :class="stat.trend.type" v-if="stat.trend.value !== '0%'">
+            <svg v-if="stat.trend.type === 'up'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            {{ stat.trend.value }}
           </span>
         </div>
         <div class="stat-value">{{ stat.value }}</div>
         <div class="stat-label">{{ stat.label }}</div>
         <div class="stat-progress">
-          <div class="stat-progress-bar" :style="{ width: stat.progress + '%' }"></div>
+          <div 
+            class="stat-progress-bar" 
+            :style="{ width: stat.progress + '%' }"
+            :class="getProgressClass(stat.progress, stat.label)"
+          ></div>
+        </div>
+        <div class="stat-threshold" v-if="stat.progress > 0">
+          <span :class="getThresholdClass(stat.progress)">
+            {{ getThresholdText(stat.progress) }}
+          </span>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="quick-actions">
-      <button class="action-btn" @click="refreshData">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="action-btn" @click="refreshData" :disabled="refreshing">
+        <svg 
+          width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          :class="{ spinning: refreshing }"
+        >
           <polyline points="23 4 23 10 17 10"/>
           <polyline points="1 20 1 14 7 14"/>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
         </svg>
-        刷新数据
+        {{ refreshing ? '刷新中...' : '刷新数据' }}
       </button>
-      <button class="action-btn" @click="toggleAutoRefresh">
+      <button class="action-btn" :class="{ active: autoRefresh }" @click="toggleAutoRefresh">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
         {{ autoRefresh ? '关闭自动刷新' : '开启自动刷新' }}
+        <span class="refresh-indicator" v-if="autoRefresh">
+          {{ refreshCountdown }}s
+        </span>
       </button>
-      <button class="action-btn primary" @click="openGrafana">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-          <polyline points="15 3 21 3 21 9"/>
-          <line x1="10" y1="14" x2="21" y2="3"/>
-        </svg>
-        打开 Grafana
-      </button>
-    </div>
-
-    <!-- Grafana Section -->
-    <div class="grafana-section">
-      <div class="section-header">
-        <div class="section-title">
-          <svg class="section-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-          <span>Grafana 全量监控</span>
-        </div>
-        <div class="section-actions">
-          <select class="time-select" v-model="timeRange">
-            <option value="now-1h">最近 1 小时</option>
-            <option value="now-6h">最近 6 小时</option>
-            <option value="now-24h">最近 24 小时</option>
-            <option value="now-7d">最近 7 天</option>
-            <option value="now-30d">最近 30 天</option>
-          </select>
-        </div>
-      </div>
-      <div class="grafana-wrapper">
-        <iframe 
-          class="grafana-frame"
-          :src="grafanaUrl"
-          @load="onGrafanaLoad"
-        ></iframe>
-        <div class="grafana-loading" v-if="grafanaLoading">
-          <div class="loading-spinner"></div>
-          <span>加载监控面板...</span>
-        </div>
+      <div class="last-update" v-if="lastUpdateTime">
+        最后更新: {{ formatLastUpdate(lastUpdateTime) }}
       </div>
     </div>
 
-    <!-- Node Status -->
-    <div class="nodes-section">
-      <div class="section-header">
-        <div class="section-title">
-          <svg class="section-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-            <line x1="6" y1="6" x2="6.01" y2="6"/>
-            <line x1="6" y1="18" x2="6.01" y2="18"/>
-          </svg>
-          <span>节点状态</span>
-        </div>
-      </div>
-      <div class="nodes-grid">
-        <div class="node-card" v-for="node in nodes" :key="node.id" :class="{ 'offline': !node.online }">
-          <div class="node-status">
-            <span class="status-dot" :class="node.online ? 'online' : 'offline'"></span>
-            <span class="status-text">{{ node.online ? '在线' : '离线' }}</span>
-          </div>
-          <div class="node-name">{{ node.name }}</div>
-          <div class="node-ip">{{ node.ip }}</div>
-          <div class="node-metrics">
-            <div class="metric">
-              <span class="metric-label">CPU</span>
-              <span class="metric-value">{{ node.cpu }}%</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">内存</span>
-              <span class="metric-value">{{ node.memory }}%</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">磁盘</span>
-              <span class="metric-value">{{ node.disk }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- Error Alert -->
+    <div class="error-alert" v-if="errorMessage">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ errorMessage }}</span>
+      <button class="error-close" @click="errorMessage = ''">×</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
-// -------------------- Dashboard 总览 --------------------
+const PROMETHEUS_API = 'http://localhost:9099/api/v1/query'
+const REFRESH_INTERVAL = 30000
+
 const stats = ref([
-  { label: 'CPU 使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'cyan', icon: '...' },
-  { label: '内存使用率', value: '--', progress: 0, trend: { type: 'down', value: '0%' }, color: 'green', icon: '...' },
-  { label: '磁盘使用率', value: '--', progress: 0, trend: { type: 'up', value: '0%' }, color: 'yellow', icon: '...' },
+  { 
+    label: 'CPU 使用率', 
+    value: '--', 
+    progress: 0, 
+    trend: { type: 'up', value: '0%' }, 
+    color: 'cyan', 
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+    prevValue: 0
+  },
+  { 
+    label: '内存使用率', 
+    value: '--', 
+    progress: 0, 
+    trend: { type: 'down', value: '0%' }, 
+    color: 'green', 
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3m4 3v-6m4 6V9m4 10V5"/></svg>',
+    prevValue: 0
+  },
+  { 
+    label: '磁盘使用率', 
+    value: '--', 
+    progress: 0, 
+    trend: { type: 'up', value: '0%' }, 
+    color: 'yellow', 
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+    prevValue: 0
+  },
+  { 
+    label: '网络流量', 
+    value: '--', 
+    progress: 0, 
+    trend: { type: 'up', value: '0%' }, 
+    color: 'purple', 
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
+    prevValue: 0
+  }
 ])
 
-// -------------------- Prometheus 数据请求 --------------------
-async function fetchStats() {
+const refreshing = ref(false)
+const autoRefresh = ref(true)
+const refreshCountdown = ref(30)
+const lastUpdateTime = ref(null)
+const errorMessage = ref('')
+
+let refreshInterval = null
+let countdownInterval = null
+
+const getProgressClass = (progress, label) => {
+  if (progress > 90) return 'danger'
+  if (progress > 80) return 'warning'
+  return ''
+}
+
+const getThresholdText = (progress) => {
+  if (progress > 90) return '危险'
+  if (progress > 80) return '警告'
+  if (progress > 60) return '正常'
+  return '良好'
+}
+
+const getThresholdClass = (progress) => {
+  if (progress > 90) return 'danger'
+  if (progress > 80) return 'warning'
+  if (progress > 60) return 'normal'
+  return 'good'
+}
+
+const formatLastUpdate = (date) => {
+  if (!date) return ''
+  const now = new Date()
+  const diff = Math.floor((now - date) / 1000)
+  
+  if (diff < 10) return '刚刚'
+  if (diff < 60) return `${diff}秒前`
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+const formatBytes = (bytes, decimals = 2) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i]
+}
+
+const fetchStats = async () => {
+  refreshing.value = true
+  errorMessage.value = ''
+  
   try {
-    // CPU 使用率
-    const cpuRes = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])))' }
-    })
-    if (cpuRes.data.data.result.length > 0) {
-      const cpuVal = Math.max(0, parseFloat(cpuRes.data.data.result[0].value[1]))
-      stats.value[0].progress = cpuVal
-      stats.value[0].value = cpuVal.toFixed(1) + '%'
+    const queries = [
+      '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[30s])))',
+      '1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)',
+      'avg((node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100',
+      'sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[1m]))'
+    ]
+
+    const results = await Promise.all(
+      queries.map(query =>
+        axios.get(PROMETHEUS_API, { 
+          params: { query },
+          timeout: 10000 
+        })
+      )
+    )
+
+    if (results[0].data?.data?.result?.length) {
+      const newValue = Math.max(0, Math.min(100, parseFloat(results[0].data.data.result[0].value[1])))
+      const prevValue = stats.value[0].prevValue
+      const diff = newValue - prevValue
+      
+      stats.value[0].progress = newValue
+      stats.value[0].value = newValue.toFixed(1) + '%'
+      stats.value[0].trend = {
+        type: diff >= 0 ? 'up' : 'down',
+        value: Math.abs(diff).toFixed(1) + '%'
+      }
+      stats.value[0].prevValue = newValue
     }
 
-    // 内存使用率
-    const memRes = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: '1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)' }
-    })
-    if (memRes.data.data.result.length > 0) {
-      const memVal = Math.max(0, parseFloat(memRes.data.data.result[0].value[1]) * 100)
-      stats.value[1].progress = memVal
-      stats.value[1].value = memVal.toFixed(1) + '%'
+    if (results[1].data?.data?.result?.length) {
+      const rawValue = parseFloat(results[1].data.data.result[0].value[1])
+      const newValue = Math.max(0, Math.min(100, rawValue * 100))
+      const prevValue = stats.value[1].prevValue
+      const diff = newValue - prevValue
+      
+      stats.value[1].progress = newValue
+      stats.value[1].value = newValue.toFixed(1) + '%'
+      stats.value[1].trend = {
+        type: diff >= 0 ? 'up' : 'down',
+        value: Math.abs(diff).toFixed(1) + '%'
+      }
+      stats.value[1].prevValue = newValue
     }
 
-    // 磁盘使用率
-    const diskRes = await axios.get('http://localhost:9099/api/v1/query', {
-      params: { query: 'avg((node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100' }
-    })
-    if (diskRes.data.data.result.length > 0) {
-      const diskVal = Math.max(0, parseFloat(diskRes.data.data.result[0].value[1]))
-      stats.value[2].progress = diskVal
-      stats.value[2].value = diskVal.toFixed(1) + '%'
+    if (results[2].data?.data?.result?.length) {
+      const newValue = Math.max(0, Math.min(100, parseFloat(results[2].data.data.result[0].value[1])))
+      const prevValue = stats.value[2].prevValue
+      const diff = newValue - prevValue
+      
+      stats.value[2].progress = newValue
+      stats.value[2].value = newValue.toFixed(1) + '%'
+      stats.value[2].trend = {
+        type: diff >= 0 ? 'up' : 'down',
+        value: Math.abs(diff).toFixed(1) + '%'
+      }
+      stats.value[2].prevValue = newValue
     }
 
-  } catch (e) {
-    console.error('获取 Prometheus 数据失败', e)
+    if (results[3].data?.data?.result?.length) {
+      const bytesPerSec = parseFloat(results[3].data.data.result[0].value[1])
+      const prevValue = stats.value[3].prevValue
+      const diff = bytesPerSec - prevValue
+      
+      stats.value[3].value = formatBytes(bytesPerSec) + '/s'
+      stats.value[3].progress = Math.min(100, (bytesPerSec / (100 * 1024 * 1024)) * 100)
+      stats.value[3].trend = {
+        type: diff >= 0 ? 'up' : 'down',
+        value: formatBytes(Math.abs(diff)) + '/s'
+      }
+      stats.value[3].prevValue = bytesPerSec
+    }
+
+    lastUpdateTime.value = new Date()
+
+  } catch (err) {
+    console.error('获取 Prometheus 数据失败:', err)
+    errorMessage.value = '获取监控数据失败，请检查 Prometheus 连接'
+  } finally {
+    refreshing.value = false
   }
 }
 
-// -------------------- 组件挂载 --------------------
-onMounted(() => {
-  fetchStats()  // ⚡ 页面挂载时立即请求数据
-})
+const refreshData = async () => {
+  await fetchStats()
+  resetCountdown()
+}
 
-// -------------------- Grafana 配置 --------------------
-const timeRange = ref('now-24h')
-const grafanaLoading = ref(true)
-const autoRefresh = ref(true)
-
-const grafanaUrl = computed(() => `http://localhost:3000/goto/afabb2aq3rldsb?orgId=1`)
-
-const onGrafanaLoad = () => {
-  grafanaLoading.value = false
+const resetCountdown = () => {
+  refreshCountdown.value = REFRESH_INTERVAL / 1000
 }
 
 const toggleAutoRefresh = () => {
   autoRefresh.value = !autoRefresh.value
+  
+  if (autoRefresh.value) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
 }
 
-const openGrafana = () => {
-  window.open('http://localhost:3000/?orgId=1&from=now-6h&to=now&timezone=browser', '_blank')
+const startAutoRefresh = () => {
+  stopAutoRefresh()
+  resetCountdown()
+  
+  countdownInterval = setInterval(() => {
+    refreshCountdown.value--
+    if (refreshCountdown.value <= 0) {
+      resetCountdown()
+    }
+  }, 1000)
+  
+  refreshInterval = setInterval(() => {
+    refreshData()
+  }, REFRESH_INTERVAL)
 }
 
-// -------------------- 清理 --------------------
-let refreshInterval
+const stopAutoRefresh = () => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+}
+
+onMounted(async () => {
+  await refreshData()
+
+  if (autoRefresh.value) {
+    startAutoRefresh()
+  }
+})
+
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
+  stopAutoRefresh()
 })
 </script>
-
 
 <style scoped>
 .dashboard {
@@ -207,7 +326,6 @@ onUnmounted(() => {
   gap: 28px;
 }
 
-/* Stats Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -269,6 +387,9 @@ onUnmounted(() => {
 }
 
 .stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 6px;
@@ -312,10 +433,30 @@ onUnmounted(() => {
   transition: width 0.5s ease;
 }
 
-/* Quick Actions */
+.stat-progress-bar.warning {
+  background: var(--accent-yellow);
+}
+
+.stat-progress-bar.danger {
+  background: var(--accent-red);
+}
+
+.stat-threshold {
+  margin-top: 8px;
+  font-size: 11px;
+  text-align: right;
+}
+
+.stat-threshold .good { color: var(--accent-green); }
+.stat-threshold .normal { color: var(--accent-cyan); }
+.stat-threshold .warning { color: var(--accent-yellow); }
+.stat-threshold .danger { color: var(--accent-red); }
+
 .quick-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -334,104 +475,66 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border-color: var(--accent-cyan);
 }
 
-.action-btn.primary {
-  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
-  border-color: transparent;
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn.active {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.refresh-indicator {
+  background: var(--accent-green);
   color: white;
-  box-shadow: 0 4px 16px var(--accent-cyan-glow);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-left: 4px;
 }
 
-.action-btn.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px var(--accent-cyan-glow);
-}
-
-/* Grafana Section */
-.grafana-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.section-icon {
-  color: var(--accent-cyan);
-}
-
-.time-select {
-  padding: 10px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.time-select:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-}
-
-.time-select option {
-  background: var(--bg-secondary);
-}
-
-.grafana-wrapper {
-  position: relative;
-  width: 100%;
-  height: 650px;
-}
-
-.grafana-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: var(--bg-primary);
-}
-
-.grafana-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  background: var(--bg-card);
+.last-update {
+  margin-left: auto;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--accent-cyan);
-  border-radius: 50%;
+.error-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: var(--accent-red);
+}
+
+.error-alert svg {
+  flex-shrink: 0;
+}
+
+.error-alert span {
+  flex: 1;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.spinning {
   animation: spin 1s linear infinite;
 }
 
@@ -439,106 +542,8 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* Nodes Section */
-.nodes-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.nodes-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  padding: 24px;
-}
-
-.node-card {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.2s ease;
-}
-
-.node-card:hover {
-  border-color: var(--accent-cyan);
-}
-
-.node-card.offline {
-  opacity: 0.6;
-}
-
-.node-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-dot.online {
-  background: var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green);
-}
-
-.status-dot.offline {
-  background: var(--text-muted);
-}
-
-.status-text {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.node-name {
-  font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 4px;
-}
-
-.node-ip {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
-}
-
-.node-metrics {
-  display: flex;
-  gap: 16px;
-}
-
-.metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.metric-label {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.metric-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent-cyan);
-}
-
-/* Responsive */
 @media (max-width: 1400px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .nodes-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -547,8 +552,13 @@ onUnmounted(() => {
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  .nodes-grid {
-    grid-template-columns: 1fr;
+  .quick-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .last-update {
+    margin-left: 0;
+    text-align: center;
   }
 }
 </style>

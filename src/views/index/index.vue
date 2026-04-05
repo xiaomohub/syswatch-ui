@@ -21,7 +21,7 @@
       <nav class="nav-section">
         <div class="nav-label">主要功能</div>
         
-        <router-link to="/dashboard" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_DASHBOARD)" to="/dashboard" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="7" height="7"/>
@@ -33,7 +33,7 @@
           <span class="nav-text">监控面板</span>
         </router-link>
 
-        <router-link to="/alert" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_ALERT)" to="/alert" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -43,7 +43,18 @@
           <span class="nav-text">告警统计</span>
         </router-link>
 
-        <router-link to="/alertconfig" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_AIOPS_RCA)" to="/aiops-rca" class="nav-item" active-class="active">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
+              <path d="M9 18h6M10 22h4"/>
+              <path d="M8 14h8"/>
+            </svg>
+          </span>
+          <span class="nav-text">智能根因</span>
+        </router-link>
+
+        <router-link v-if="can(PERM.MENU_ALERT_CONFIG)" to="/alertconfig" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
@@ -54,7 +65,7 @@
           <span class="nav-text">告警配置</span>
         </router-link>
 
-        <router-link to="/logquery" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_LOG_QUERY)" to="/logquery" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -70,7 +81,7 @@
         <div class="nav-label">告警管理</div>
 
         <!-- 告警静默 -->
-        <router-link to="/alertsilence" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_ALERT_SILENCE)" to="/alertsilence" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -81,8 +92,15 @@
           <span class="nav-text">告警静默</span>
         </router-link>
 
-
-
+        <div class="nav-label" v-if="can(PERM.ADMIN_ROLE_MANAGE)">系统管理</div>
+        <router-link v-if="can(PERM.ADMIN_ROLE_MANAGE)" to="/roleadmin" class="nav-item" active-class="active">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </span>
+          <span class="nav-text">角色权限</span>
+        </router-link>
 
       <div class="user-section">
         <div class="user-card">
@@ -146,27 +164,35 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/store/user'
+import { PERM } from '@/constants/rbac'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const showLogoutModal = ref(false)
 const currentTime = ref('')
 
-// User info
-const userName = ref('Admin')
-const userRole = ref('系统管理员')
+const userName = computed(
+  () => userStore.profile.displayName || userStore.profile.username || '用户'
+)
+const userRole = computed(() => userStore.roleLabel)
 const userInitials = computed(() => userName.value.slice(0, 2).toUpperCase())
+const can = (code) => userStore.hasPermission(code)
 
 // Page title
 const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',
+    '/aiops-rca': '智能根因',
     '/alertsilence': '告警静默',
     '/alertinhibit': '告警抑制',
     '/alertconfig': '告警配置',
-    '/logquery': '日志查询'
+    '/logquery': '日志查询',
+    '/roleadmin': '角色权限',
+    '/forbidden': '无权限'
   }
   return titles[route.path] || '监控面板'
 })
@@ -187,9 +213,7 @@ const updateTime = () => {
 // Logout
 const handleLogout = () => {
   showLogoutModal.value = false
-  // 清除登录状态
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  userStore.logout()
   router.push('/login')
 }
 

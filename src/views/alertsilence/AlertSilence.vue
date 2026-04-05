@@ -375,7 +375,7 @@
   
   <script>
   import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-  import axios from 'axios'
+  import http from '@/utils/http'
   
   const API_BASE = '/api/alert/silence'
   
@@ -444,7 +444,7 @@
       const fetchAlerts = async () => {
         loading.value = true
         try {
-          const res = await axios.get(`${API_BASE}/alerts`)
+          const res = await http.get(`${API_BASE}/alerts`)
           if (res.data.code === 0) {
             alerts.value = res.data.data || []
           }
@@ -459,7 +459,7 @@
       const fetchSilences = async () => {
         loadingSilences.value = true
         try {
-          const res = await axios.get(`${API_BASE}/silences`)
+          const res = await http.get(`${API_BASE}/silences`)
           if (res.data.code === 0) {
             activeSilences.value = res.data.data || []
           }
@@ -504,7 +504,7 @@
             createdBy: silenceForm.createdBy || 'syswatch-user'
           }
   
-          const res = await axios.post(API_BASE, payload)
+          const res = await http.post(API_BASE, payload)
           if (res.data.code === 0) {
             showToast('静默创建成功，该告警将在 ' + silenceForm.durationMinutes + ' 分钟内不再通知')
             closeSilenceModal()
@@ -533,7 +533,7 @@
       const deleteSilence = async () => {
         deleting.value = true
         try {
-          await axios.delete(`${API_BASE}/${silenceToDelete.value.id}`)
+          await http.delete(`${API_BASE}/${silenceToDelete.value.id}`)
           showToast('静默已取消，告警将恢复通知')
           showDeleteConfirm.value = false
           refreshData()

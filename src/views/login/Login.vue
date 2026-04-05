@@ -43,8 +43,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+import http from '@/utils/http'
 import { useUserStore } from '@/store/user'
+import { defaultHomePath } from '@/constants/rbac'
 import router from '@/router'
 
 const username = ref('')
@@ -59,16 +60,27 @@ const doLogin = async () => {
 
   try {
     // 这里走 Vite 代理，路径以 /api 开头
-    const res = await axios.post('/api/auth/login', {
+    const res = await http.post('/api/auth/login', {
       username: username.value,
       password: password.value
     })
-    
-    // 根据后端返回的字段存 token
-    const token = res.data.token
-    userStore.setToken(token)
-    
-    router.push('/dashboard')
+    const data = res.data || {}
+    const token = data.token
+    if (!token) {
+      error.value = '登录响应缺少 token'
+      return
+    }
+    const permissionsOmitted = !Object.prototype.hasOwnProperty.call(data, 'permissions')
+    userStore.setSession({
+      token,
+      user: data.user,
+      permissions: data.permissions,
+      permissionsOmitted
+    })
+    const redirect = router.currentRoute.value.query.redirect
+    const target =
+      typeof redirect === 'string' && redirect ? redirect : defaultHomePath(userStore.hasPermission)
+    router.push(target)
   } catch (e) {
     // 兼容后端返回对象或字符串
     error.value = e.response?.data?.message || e.response?.data || e.message || '登录失败'
