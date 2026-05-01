@@ -29,10 +29,16 @@ const routes = [
         meta: { title: '告警统计', permission: PERM.MENU_ALERT }
       },
       {
+        path: 'faultcenter',
+        name: 'FaultCenter',
+        component: () => import('../views/faultcenter/FaultCenter.vue'),
+        meta: { title: '故障中心', permission: PERM.MENU_FAULT_CENTER }
+      },
+      {
         path: 'aiops-rca',
-        name: 'AiopsRca',
-        component: () => import('../views/aiops/AiopsRca.vue'),
-        meta: { title: '智能根因', permission: PERM.MENU_AIOPS_RCA }
+        name: 'AiopsCenter',
+        component: () => import('../views/aiops/AiopsCenter.vue'),
+        meta: { title: '智能诊断', permission: PERM.MENU_AIOPS_RCA }
       },
       {
         path: 'alertconfig',
@@ -117,7 +123,7 @@ router.beforeEach((to, from, next) => {
  */
 router.afterEach((to) => {
   const title = to.meta.title || '系统'
-  document.title = `${title} - 告警日志系统`
+  document.title = `${title} · SysWatch`
 })
 
 /**

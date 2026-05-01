@@ -135,7 +135,7 @@
               v-if="canAiopsRca"
               class="icon-btn aiops-btn"
               type="button"
-              title="AIOps 根因分析"
+              title="智能诊断 · 根因分析"
               @click="goAiopsRca(alert)"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -290,7 +290,7 @@
               class="btn btn-primary"
               @click="goAiopsRcaFromDetail"
             >
-              AIOps 根因分析
+              智能诊断
             </button>
             <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
           </div>
@@ -808,6 +808,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* 低饱和告警语义色，避免花绿/亮青 */
+  --sev-critical: #8b3f48;
+  --sev-warning: #735c2e;
+  --sev-info: #4a5f73;
+  --sev-resolved: #3f5a50;
+  --alert-focus: #4a5f78;
 }
 
 /* Alert Overview */
@@ -840,8 +846,9 @@ onUnmounted(() => {
 }
 
 .alert-stat-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--card-color);
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .alert-stat-card.active {
@@ -849,17 +856,18 @@ onUnmounted(() => {
   box-shadow: 0 0 0 1px var(--card-color);
 }
 
-.alert-stat-card.critical { --card-color: var(--accent-red); }
-.alert-stat-card.warning { --card-color: var(--accent-yellow); }
-.alert-stat-card.info { --card-color: var(--accent-cyan); }
-.alert-stat-card.resolved { --card-color: var(--accent-green); }
+.alert-stat-card.critical { --card-color: var(--sev-critical); }
+.alert-stat-card.warning { --card-color: var(--sev-warning); }
+.alert-stat-card.info { --card-color: var(--sev-info); }
+.alert-stat-card.resolved { --card-color: var(--sev-resolved); }
 
 .alert-stat-icon {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 16px;
-  background: linear-gradient(135deg, var(--card-color), transparent);
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -867,16 +875,18 @@ onUnmounted(() => {
 }
 
 .alert-stat-value {
-  font-size: 36px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--card-color);
+  font-size: 30px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .alert-stat-label {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 /* Toolbar */
@@ -921,7 +931,7 @@ onUnmounted(() => {
 
 .search-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
+  border-color: var(--alert-focus);
 }
 
 .filter-select {
@@ -938,7 +948,7 @@ onUnmounted(() => {
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--accent-cyan);
+  border-color: var(--alert-focus);
 }
 
 .filter-select option {
@@ -966,13 +976,12 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--brand-600);
+  color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #06b6d4;
-  transform: translateY(-2px);
+  background: var(--brand-700);
 }
 
 .btn-secondary {
@@ -982,8 +991,9 @@ onUnmounted(() => {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
 }
 
 .btn-text {
@@ -993,7 +1003,7 @@ onUnmounted(() => {
 }
 
 .btn-text:hover {
-  color: var(--accent-red);
+  color: var(--text-primary);
 }
 
 .btn:disabled {
@@ -1052,50 +1062,55 @@ onUnmounted(() => {
 }
 
 .alert-item:hover {
-  background: rgba(6, 182, 212, 0.04);
+  background: var(--bg-subtle);
 }
 
 /* Badges */
 .severity-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .severity-badge.critical {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
+  background: #e8d4d6;
+  color: #5c2a30;
+  border: 1px solid #d4bcbf;
 }
 
 .severity-badge.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
+  background: #e8e2d4;
+  color: #5c4a26;
+  border: 1px solid #d4cdb8;
 }
 
 .severity-badge.info {
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
+  background: #dbe3e8;
+  color: #3d4f5f;
+  border: 1px solid #c5d0d8;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
 }
 
 .status-badge.active {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
+  background: #e5dcd8;
+  color: #5c3d38;
+  border: 1px solid #d0c4bf;
 }
 
 .status-badge.resolved {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
+  background: #dde5e1;
+  color: #3d5248;
+  border: 1px solid #c5d1cc;
 }
 
 .name-tag {
@@ -1161,13 +1176,13 @@ onUnmounted(() => {
 }
 
 .icon-btn:hover {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .icon-btn.aiops-btn:hover {
-  background: var(--accent-purple);
-  color: white;
+  background: #d8e0eb;
+  color: var(--brand-800);
 }
 
 /* Empty State */
@@ -1194,7 +1209,7 @@ onUnmounted(() => {
   height: 40px;
   margin: 0 auto 16px;
   border: 3px solid var(--border-color);
-  border-top-color: var(--accent-cyan);
+  border-top-color: var(--brand-600);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1246,8 +1261,9 @@ onUnmounted(() => {
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-subtle);
 }
 
 .page-btn:disabled {
@@ -1278,8 +1294,8 @@ onUnmounted(() => {
 }
 
 .page-num.active {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--brand-700);
+  color: #fff;
 }
 
 .page-num.ellipsis {
@@ -1372,8 +1388,8 @@ onUnmounted(() => {
 }
 
 .detail-value.mono {
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-secondary);
 }
 
 .detail-section {
@@ -1414,9 +1430,9 @@ onUnmounted(() => {
 }
 
 .tag-key {
-  color: var(--accent-cyan);
-  font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   flex-shrink: 0;
 }
 

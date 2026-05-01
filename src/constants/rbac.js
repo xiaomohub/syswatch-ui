@@ -4,10 +4,11 @@
 export const PERM = {
   MENU_DASHBOARD: 'menu:dashboard',
   MENU_ALERT: 'menu:alert',
+  MENU_FAULT_CENTER: 'menu:faultcenter',
   MENU_ALERT_CONFIG: 'menu:alertconfig',
   MENU_ALERT_SILENCE: 'menu:alertsilence',
   MENU_LOG_QUERY: 'menu:logquery',
-  /** AIOps 告警根因分析页 */
+  /** 智能诊断（根因 / 巡检 / 历史） */
   MENU_AIOPS_RCA: 'menu:aiops:rca',
   /** 经平台内嵌查看 Grafana 大盘（URL 仅由后端签发，前端不拼真实 Grafana 地址） */
   MONITOR_EMBED: 'monitor:embed',
@@ -24,6 +25,7 @@ export function defaultHomePath(hasPermission) {
   const order = [
     ['/dashboard', PERM.MENU_DASHBOARD],
     ['/alert', PERM.MENU_ALERT],
+    ['/faultcenter', PERM.MENU_FAULT_CENTER],
     ['/aiops-rca', PERM.MENU_AIOPS_RCA],
     ['/alertconfig', PERM.MENU_ALERT_CONFIG],
     ['/alertsilence', PERM.MENU_ALERT_SILENCE],

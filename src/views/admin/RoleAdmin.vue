@@ -77,7 +77,7 @@ function localCatalog() {
     { code: PERM.MENU_ALERT_CONFIG, name: '菜单-告警配置' },
     { code: PERM.MENU_ALERT_SILENCE, name: '菜单-告警静默' },
     { code: PERM.MENU_LOG_QUERY, name: '菜单-日志查询' },
-    { code: PERM.MENU_AIOPS_RCA, name: '菜单-AIOps 智能根因' },
+    { code: PERM.MENU_AIOPS_RCA, name: '菜单-智能诊断' },
     { code: PERM.MONITOR_EMBED, name: '内嵌 Grafana' },
     { code: PERM.MONITOR_GRAFANA_DIRECT, name: '直达 Grafana' },
     { code: PERM.ADMIN_ROLE_MANAGE, name: '角色权限管理' }
@@ -103,7 +103,7 @@ async function loadAll() {
     catalog.value = localCatalog()
     listError.value =
       e.response?.status === 404
-        ? '后端尚未实现 RBAC 接口（见 docs/monitoring-rbac-spec.md）。下方为前端权限字典预览。'
+        ? '后端尚未实现 RBAC 接口。下方为前端权限字典预览。'
         : e.response?.data?.message || e.message || '加载失败'
   } finally {
     loading.value = false
@@ -235,9 +235,12 @@ onMounted(() => {
   cursor: not-allowed;
 }
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+  background: var(--brand-600);
   border-color: transparent;
   color: #fff;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--brand-700);
 }
 .btn.secondary {
   background: transparent;

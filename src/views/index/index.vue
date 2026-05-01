@@ -13,14 +13,12 @@
           </div>
           <div>
             <div class="logo-text">SysWatch</div>
-            <div class="logo-subtitle">Monitor System</div>
+            <div class="logo-subtitle">智能观测平台</div>
           </div>
         </div>
       </div>
 
-      <nav class="nav-section">
-        <div class="nav-label">主要功能</div>
-        
+      <nav class="nav-section" aria-label="功能导航">
         <router-link v-if="can(PERM.MENU_DASHBOARD)" to="/dashboard" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,15 +41,27 @@
           <span class="nav-text">告警统计</span>
         </router-link>
 
-        <router-link v-if="can(PERM.MENU_AIOPS_RCA)" to="/aiops-rca" class="nav-item" active-class="active">
+        <router-link v-if="can(PERM.MENU_FAULT_CENTER)" to="/faultcenter" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
-              <path d="M9 18h6M10 22h4"/>
-              <path d="M8 14h8"/>
+              <path d="M12 2a10 10 0 1 0 10 10"/>
+              <path d="M12 8v5"/>
+              <path d="M12 16h.01"/>
+              <path d="M22 12a10 10 0 0 0-10-10"/>
             </svg>
           </span>
-          <span class="nav-text">智能根因</span>
+          <span class="nav-text">故障中心</span>
+        </router-link>
+
+        <router-link v-if="can(PERM.MENU_ALERT_SILENCE)" to="/alertsilence" class="nav-item" active-class="active">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </span>
+          <span class="nav-text">告警静默</span>
         </router-link>
 
         <router-link v-if="can(PERM.MENU_ALERT_CONFIG)" to="/alertconfig" class="nav-item" active-class="active">
@@ -65,6 +75,17 @@
           <span class="nav-text">告警配置</span>
         </router-link>
 
+        <router-link v-if="can(PERM.MENU_AIOPS_RCA)" to="/aiops-rca" class="nav-item" active-class="active">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
+              <path d="M9 18h6M10 22h4"/>
+              <path d="M8 14h8"/>
+            </svg>
+          </span>
+          <span class="nav-text">智能诊断</span>
+        </router-link>
+
         <router-link v-if="can(PERM.MENU_LOG_QUERY)" to="/logquery" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -76,23 +97,7 @@
           </span>
           <span class="nav-text">日志查询</span>
         </router-link>
-      </nav>
-        <!-- 添加新的导航分组标签 -->
-        <div class="nav-label">告警管理</div>
 
-        <!-- 告警静默 -->
-        <router-link v-if="can(PERM.MENU_ALERT_SILENCE)" to="/alertsilence" class="nav-item" active-class="active">
-          <span class="nav-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          </span>
-          <span class="nav-text">告警静默</span>
-        </router-link>
-
-        <div class="nav-label" v-if="can(PERM.ADMIN_ROLE_MANAGE)">系统管理</div>
         <router-link v-if="can(PERM.ADMIN_ROLE_MANAGE)" to="/roleadmin" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -101,23 +106,7 @@
           </span>
           <span class="nav-text">角色权限</span>
         </router-link>
-
-      <div class="user-section">
-        <div class="user-card">
-          <div class="user-avatar">{{ userInitials }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ userName }}</div>
-            <div class="user-role">{{ userRole }}</div>
-          </div>
-          <button class="logout-btn" @click="showLogoutModal = true" title="退出登录">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+      </nav>
     </aside>
 
     <!-- Main Content -->
@@ -130,6 +119,29 @@
             <span>系统运行正常</span>
           </div>
           <div class="time-display">{{ currentTime }}</div>
+          <div class="header-user" role="group" aria-label="当前用户">
+            <router-link
+              v-if="can(PERM.ADMIN_ROLE_MANAGE)"
+              to="/roleadmin"
+              class="user-avatar user-avatar-link"
+              active-class="user-avatar-active"
+              title="角色权限"
+            >
+              {{ userInitials }}
+            </router-link>
+            <div v-else class="user-avatar" aria-hidden="true">{{ userInitials }}</div>
+            <div class="user-meta">
+              <div class="user-name">{{ userName }}</div>
+              <div class="user-role">{{ userRole }}</div>
+            </div>
+            <button type="button" class="logout-btn" @click="showLogoutModal = true" title="退出登录">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -186,7 +198,8 @@ const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',
-    '/aiops-rca': '智能根因',
+    '/faultcenter': '故障中心',
+    '/aiops-rca': '智能诊断',
     '/alertsilence': '告警静默',
     '/alertinhibit': '告警抑制',
     '/alertconfig': '告警配置',
@@ -231,32 +244,26 @@ onUnmounted(() => {
 <style scoped>
 .app-container {
   min-height: 100vh;
-  background: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 20% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
-    linear-gradient(rgba(30, 41, 59, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 41, 59, 0.3) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background: var(--bg-page);
 }
 
-/* Sidebar */
 .sidebar {
   position: fixed;
   left: 0;
   top: 0;
   width: var(--sidebar-width);
   height: 100vh;
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  border-right: 1px solid var(--border-color);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   z-index: 100;
 }
 
 .logo-section {
-  padding: 24px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .logo {
@@ -266,88 +273,78 @@ onUnmounted(() => {
 }
 
 .logo-icon {
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  background: var(--brand-600);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: 0 4px 20px var(--accent-cyan-glow);
+  color: #fff;
+  flex-shrink: 0;
 }
 
 .logo-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
-  font-weight: 600;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .logo-subtitle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-weight: 400;
+  margin-top: 2px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nav-section {
   flex: 1;
-  padding: 20px 12px;
+  padding: 16px 12px;
   overflow-y: auto;
-}
-
-.nav-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 12px 16px 8px;
-  font-weight: 500;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  margin: 4px 0;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 2px 0;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   position: relative;
-  overflow: hidden;
   text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-item::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  height: 100%;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  height: 20px;
   width: 3px;
-  background: var(--accent-cyan);
-  transform: scaleY(0);
-  transition: transform 0.25s ease;
+  background: var(--brand-600);
+  border-radius: 0 2px 2px 0;
+  transition: transform 0.15s ease;
 }
 
 .nav-item:hover {
-  background: rgba(6, 182, 212, 0.08);
+  background: var(--bg-subtle);
   color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: rgba(6, 182, 212, 0.12);
-  color: var(--accent-cyan);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-weight: 500;
 }
 
 .nav-item.active::before {
-  transform: scaleY(1);
+  transform: translateY(-50%) scaleY(1);
 }
 
 .nav-icon {
@@ -356,217 +353,239 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nav-text {
   font-size: 14px;
-  font-weight: 500;
 }
 
 .nav-badge {
   margin-left: auto;
-  background: var(--accent-red);
-  color: white;
+  background: var(--danger-600);
+  color: #fff;
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 999px;
   font-weight: 600;
-}
-
-.user-section {
-  padding: 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-.user-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  background: var(--brand-600);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 14px;
-  color: white;
+  font-size: 12px;
+  color: #fff;
+  flex-shrink: 0;
 }
 
-.user-info {
-  flex: 1;
+a.user-avatar-link {
+  text-decoration: none;
+  color: #fff;
+  border: 2px solid transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+a.user-avatar-link:hover {
+  background: var(--brand-700);
+}
+
+a.user-avatar-link:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, #fff 70%, var(--brand-600));
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--brand-600);
+}
+
+a.user-avatar-link.user-avatar-active {
+  background: var(--brand-800);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-600) 35%, transparent);
+}
+
+.user-meta {
+  min-width: 0;
+  max-width: 140px;
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .user-role {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .logout-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--accent-red);
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .logout-btn:hover {
-  background: var(--accent-red);
-  color: white;
+  background: var(--danger-50);
+  border-color: #fecaca;
+  color: var(--danger-600);
 }
 
-/* Main Content */
 .main-content {
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  background: var(--bg-page);
 }
 
 .header {
   height: var(--header-height);
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 28px;
   position: sticky;
   top: 0;
   z-index: 50;
+  box-shadow: var(--shadow-sm);
 }
 
 .page-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 14px;
+  margin-left: 2px;
+  border-left: 1px solid var(--border-default);
 }
 
 .status-indicator {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 20px;
+  padding: 6px 12px;
+  background: var(--success-50);
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
   font-size: 13px;
-  color: var(--accent-green);
+  color: var(--success-700);
+  font-weight: 500;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--accent-green);
+  width: 6px;
+  height: 6px;
+  background: var(--success-600);
   border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .time-display {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .page-content {
-  padding: 32px;
+  padding: 24px 28px 32px;
+  max-width: 1600px;
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: fadeIn 0.15s ease;
 }
 
 .modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 32px;
-  width: 400px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.2s ease;
 }
 
 .modal-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px;
-  background: rgba(239, 68, 68, 0.15);
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: var(--danger-50);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-red);
+  color: var(--danger-600);
 }
 
 .modal-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .modal-text {
   color: var(--text-secondary);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   line-height: 1.6;
+  font-size: 14px;
 }
 
 .modal-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .modal-actions .btn {
   flex: 1;
   justify-content: center;
-  padding: 12px 20px;
+  padding: 10px 16px;
 }
 </style>

@@ -601,9 +601,10 @@
     width: 48px;
     height: 48px;
     padding: 10px;
-    background: linear-gradient(135deg, var(--accent-red), transparent);
+    background: color-mix(in srgb, #933d45 14%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, #933d45 24%, var(--border-default));
     border-radius: 12px;
-    color: var(--accent-red);
+    color: #7a333a;
   }
   
   .header-left h1 {
@@ -675,12 +676,18 @@
   }
   
   .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 24px;
     position: relative;
     overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--border-default));
+    background: linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--card-accent) 20%, var(--bg-card)) 0%,
+      color-mix(in srgb, var(--card-accent) 11%, var(--bg-card)) 48%,
+      var(--bg-card) 100%
+    );
+    box-shadow: var(--shadow-sm);
   }
   
   .stat-card::before {
@@ -689,18 +696,21 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--card-accent), transparent);
+    height: 4px;
+    background: var(--card-accent);
+    opacity: 0.92;
   }
   
-  .stat-card.red { --card-accent: var(--accent-red); }
-  .stat-card.yellow { --card-accent: var(--accent-yellow); }
-  .stat-card.cyan { --card-accent: var(--accent-cyan); }
+  /* 略深于全局 accent，铺底后仍清晰、不荧光 */
+  .stat-card.red { --card-accent: #933d45; }
+  .stat-card.yellow { --card-accent: #8a6a1f; }
+  .stat-card.cyan { --card-accent: #2f5f8a; }
   
   .stat-icon {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, var(--card-accent), transparent);
+    background: color-mix(in srgb, var(--card-accent) 26%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--card-accent) 34%, var(--border-default));
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -712,14 +722,16 @@
   .stat-value {
     font-size: 32px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text-primary);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: var(--card-accent);
+    letter-spacing: -0.02em;
   }
   
   .stat-label {
     font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 4px;
+    color: color-mix(in srgb, var(--card-accent) 35%, var(--text-muted));
+    margin-top: 6px;
+    font-weight: 500;
   }
   
   /* Tabs */
@@ -886,18 +898,21 @@
   }
   
   .severity-badge.info {
-    background: rgba(6, 182, 212, 0.15);
-    color: var(--accent-cyan);
+    background: color-mix(in srgb, var(--accent-cyan) 22%, var(--bg-card));
+    color: var(--brand-800);
+    border: 1px solid color-mix(in srgb, var(--accent-cyan) 28%, var(--border-default));
   }
   
   .severity-badge.warning {
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--accent-yellow);
+    background: color-mix(in srgb, var(--accent-yellow) 24%, var(--bg-card));
+    color: #6b4f12;
+    border: 1px solid color-mix(in srgb, var(--accent-yellow) 32%, var(--border-default));
   }
   
   .severity-badge.critical {
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--accent-red);
+    background: color-mix(in srgb, var(--accent-red) 22%, var(--bg-card));
+    color: #7a2e34;
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, var(--border-default));
   }
   
   /* Status Badge */
@@ -910,13 +925,15 @@
   }
   
   .status-badge.firing {
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--accent-red);
+    background: color-mix(in srgb, var(--accent-red) 22%, var(--bg-card));
+    color: #7a2e34;
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, var(--border-default));
   }
   
   .status-badge.silenced {
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--accent-yellow);
+    background: color-mix(in srgb, var(--accent-yellow) 24%, var(--bg-card));
+    color: #6b4f12;
+    border: 1px solid color-mix(in srgb, var(--accent-yellow) 32%, var(--border-default));
   }
   
   /* Matchers */
@@ -927,12 +944,13 @@
   }
   
   .matcher-tag {
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--accent-purple);
+    background: color-mix(in srgb, var(--accent-purple) 20%, var(--bg-card));
+    color: #4c3d75;
+    border: 1px solid color-mix(in srgb, var(--accent-purple) 28%, var(--border-default));
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
   
   /* Table Action Buttons */

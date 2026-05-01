@@ -1,43 +1,57 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="header">
-        <div class="logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
+    <aside class="login-brand" aria-hidden="true">
+      <div class="brand-inner">
+        <div class="brand-mark">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <h1>SysWatch</h1>
-        <p>系统监控平台</p>
+        <h1 class="brand-title">SysWatch</h1>
+        <p class="brand-lead">企业级监控与可观测性控制台</p>
+        <ul class="brand-points">
+          <li>统一告警与日志研判</li>
+          <li>RBAC 权限与审计就绪</li>
+          <li>智能诊断：根因分析与日志巡检</li>
+        </ul>
       </div>
+    </aside>
 
-      <form @submit.prevent="doLogin">
-        <div class="input-field">
-          <input 
-            v-model="username" 
-            type="text" 
-            placeholder="用户名"
-            required
-          />
-        </div>
+    <main class="login-main">
+      <div class="login-card">
+        <header class="card-header">
+          <h2>登录</h2>
+          <p>使用企业账号访问控制台</p>
+        </header>
 
-        <div class="input-field">
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="密码"
-            required
-          />
-        </div>
+        <form @submit.prevent="doLogin">
+          <label class="field">
+            <span class="label">用户名</span>
+            <input v-model="username" type="text" autocomplete="username" placeholder="请输入用户名" required />
+          </label>
 
-        <p v-if="error" class="error">{{ error }}</p>
+          <label class="field">
+            <span class="label">密码</span>
+            <input
+              v-model="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="请输入密码"
+              required
+            />
+          </label>
 
-        <button type="submit" :disabled="loading">
-          {{ loading ? '登录中...' : '登 录' }}
-        </button>
-      </form>
-    </div>
+          <p v-if="error" class="error">{{ error }}</p>
+
+          <button type="submit" class="submit" :disabled="loading">
+            {{ loading ? '登录中…' : '登 录' }}
+          </button>
+        </form>
+      </div>
+      <p class="login-foot">© SysWatch · 仅供授权人员使用</p>
+    </main>
   </div>
 </template>
 
@@ -59,7 +73,6 @@ const doLogin = async () => {
   loading.value = true
 
   try {
-    // 这里走 Vite 代理，路径以 /api 开头
     const res = await http.post('/api/auth/login', {
       username: username.value,
       password: password.value
@@ -82,7 +95,6 @@ const doLogin = async () => {
       typeof redirect === 'string' && redirect ? redirect : defaultHomePath(userStore.hasPermission)
     router.push(target)
   } catch (e) {
-    // 兼容后端返回对象或字符串
     error.value = e.response?.data?.message || e.response?.data || e.message || '登录失败'
   } finally {
     loading.value = false
@@ -94,91 +106,180 @@ const doLogin = async () => {
 .login-page {
   min-height: 100vh;
   display: flex;
+  background: var(--bg-page);
+}
+
+.login-brand {
+  display: none;
+  width: 42%;
+  min-height: 100vh;
+  background: linear-gradient(165deg, #0f172a 0%, #1e3a8a 42%, #0c1222 100%);
+  color: #fff;
+  padding: 48px 56px;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (min-width: 900px) {
+  .login-brand {
+    display: flex;
+  }
+}
+
+.brand-inner {
+  max-width: 400px;
+}
+
+.brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  margin-bottom: 28px;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brand-lead {
+  margin: 12px 0 32px;
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0.88;
+  font-weight: 400;
+}
+
+.brand-points {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 2;
+  opacity: 0.85;
+}
+
+.login-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px 24px;
+  background: var(--bg-page);
 }
 
 .login-card {
-  width: 360px;
-  padding: 40px;
-  background: #fff;
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 36px 36px 32px;
+  box-shadow: var(--shadow-md);
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 32px;
+.card-header {
+  margin-bottom: 28px;
 }
 
-.logo {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  color: #2563eb;
-}
-
-.header h1 {
+.card-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #111827);
+  letter-spacing: -0.02em;
 }
 
-.header p {
+.card-header p {
   margin: 8px 0 0;
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--text-muted, #6b7280);
 }
 
 form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.input-field input {
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #4b5563);
+}
+
+.field input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 14px;
   font-size: 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
 }
 
-.input-field input:focus {
-  border-color: #2563eb;
+.field input:hover {
+  border-color: var(--border-strong);
+}
+
+.field input:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.18);
+  background: var(--bg-surface);
 }
 
 .error {
   margin: 0;
   padding: 10px 12px;
   font-size: 13px;
-  color: #dc2626;
-  background: #fef2f2;
-  border-radius: 6px;
+  color: var(--danger-700, #b91c1c);
+  background: var(--danger-50, #fef2f2);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
 }
 
-button {
-  padding: 12px;
+.submit {
+  margin-top: 4px;
+  padding: 12px 16px;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   color: #fff;
-  background: #2563eb;
+  background: var(--brand-600, #2563eb);
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s ease;
+  font-family: inherit;
 }
 
-button:hover {
-  background: #1d4ed8;
+.submit:hover:not(:disabled) {
+  background: var(--brand-700, #1d4ed8);
 }
 
-button:disabled {
-  background: #93c5fd;
+.submit:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+.login-foot {
+  margin-top: 28px;
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
 }
 </style>

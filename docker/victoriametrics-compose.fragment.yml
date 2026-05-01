@@ -1,0 +1,54 @@
+# VictoriaMetrics 存算分离（可合并进现有 docker-compose）
+# 用法：将本文件 services / volumes 合并到你的 compose，并配置 Prometheus remote_write。
+#
+# 端口约定：
+#   vminsert :8480  — remote_write 入口
+#   vmselect :8481  — 查询（Prometheus 兼容 API 前缀 /select/0/prometheus/）
+#   vmstorage:8482  — 存储节点 HTTP（集群内部）
+#
+# Prometheus 增加 remote_write（示例）：
+#   remote_write:
+#     - url: http://vminsert:8480/insert/0/prometheus/api/v1/write
+#
+# Grafana Prometheus 数据源 URL：
+#   http://vmselect:8481/select/0/prometheus
+#
+# 镜像版本可按需升级；与官方文档保持一致即可。
+
+services:
+  vmstorage:
+    image: victoriametrics/vmstorage:v1.106.0
+    container_name: vmstorage
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8482"
+    volumes:
+      - vm_data:/storage
+    ports:
+      - "8482:8482"
+    restart: unless-stopped
+
+  vminsert:
+    image: victoriametrics/vminsert:v1.106.0
+    container_name: vminsert
+    command:
+      - "--storageNode=vmstorage:8482"
+    ports:
+      - "8480:8480"
+    depends_on:
+      - vmstorage
+    restart: unless-stopped
+
+  vmselect:
+    image: victoriametrics/vmselect:v1.106.0
+    container_name: vmselect
+    command:
+      - "--storageNode=vmstorage:8482"
+    ports:
+      - "8481:8481"
+    depends_on:
+      - vmstorage
+    restart: unless-stopped
+
+volumes:
+  vm_data:

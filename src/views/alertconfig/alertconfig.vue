@@ -11,7 +11,7 @@
           </svg>
           <div>
             <h1>告警规则管理</h1>
-            <span class="subtitle">Prometheus Alert Rules</span>
+            <span class="subtitle">告警规则配置</span>
           </div>
         </div>
       </div>
@@ -575,9 +575,10 @@ export default {
   width: 48px;
   height: 48px;
   padding: 10px;
-  background: linear-gradient(135deg, var(--accent-cyan), transparent);
+  background: color-mix(in srgb, var(--brand-600) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--brand-600) 18%, var(--border-default));
   border-radius: 12px;
-  color: var(--accent-cyan);
+  color: var(--brand-800);
 }
 
 .header-left h1 {
@@ -617,7 +618,7 @@ export default {
 .action-btn:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  border-color: var(--accent-cyan);
+  border-color: var(--border-strong);
 }
 
 .action-btn:disabled {
@@ -626,15 +627,14 @@ export default {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+  background: var(--brand-600);
   border-color: transparent;
-  color: white;
-  box-shadow: 0 4px 16px var(--accent-cyan-glow);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px var(--accent-cyan-glow);
+  background: var(--brand-700);
 }
 
 .action-btn.danger {
@@ -673,18 +673,19 @@ export default {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--card-accent), transparent);
+  background: var(--card-accent);
+  opacity: 0.88;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--card-accent);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
-.stat-card.cyan { --card-accent: var(--accent-cyan); }
-.stat-card.green { --card-accent: var(--accent-green); }
-.stat-card.yellow { --card-accent: var(--accent-yellow); }
+.stat-card.cyan { --card-accent: #2f5f8a; }
+.stat-card.green { --card-accent: #3f5a50; }
+.stat-card.yellow { --card-accent: #735c2e; }
 
 .stat-header {
   display: flex;
@@ -696,7 +697,8 @@ export default {
 .stat-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--card-accent), transparent);
+  background: color-mix(in srgb, var(--card-accent) 14%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, var(--border-default));
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -758,7 +760,7 @@ export default {
 }
 
 .section-icon {
-  color: var(--accent-cyan);
+  color: var(--text-muted);
 }
 
 .rules-count {
@@ -831,8 +833,8 @@ export default {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--accent-yellow);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-secondary);
   border: 1px solid var(--border-color);
 }
 
@@ -845,8 +847,8 @@ export default {
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-secondary);
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -859,14 +861,14 @@ export default {
 }
 
 .condition-badge {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(236, 72, 153, 0.1));
-  border: 1px solid var(--border-color);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
   padding: 6px 12px;
   border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   display: inline-block;
 }
 
@@ -878,25 +880,28 @@ export default {
 /* ==================== Severity Badge ==================== */
 .severity-badge {
   display: inline-block;
-  padding: 6px 14px;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
 }
 
 .severity-badge.info {
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--brand-600) 14%, var(--bg-card));
+  color: var(--brand-800);
+  border: 1px solid color-mix(in srgb, var(--brand-600) 22%, var(--border-default));
 }
 
 .severity-badge.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
+  background: color-mix(in srgb, var(--warning-600) 16%, var(--bg-card));
+  color: #6b4f12;
+  border: 1px solid color-mix(in srgb, var(--warning-600) 24%, var(--border-default));
 }
 
 .severity-badge.critical {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
+  background: color-mix(in srgb, var(--danger-600) 14%, var(--bg-card));
+  color: var(--danger-700);
+  border: 1px solid color-mix(in srgb, var(--danger-600) 22%, var(--border-default));
 }
 
 /* ==================== Switch ==================== */
@@ -939,7 +944,7 @@ export default {
 }
 
 .switch input:checked + .slider {
-  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+  background: var(--brand-600);
   border-color: transparent;
 }
 
@@ -973,9 +978,9 @@ export default {
 }
 
 .table-action-btn.edit:hover {
-  background: rgba(6, 182, 212, 0.15);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .table-action-btn.delete:hover {
@@ -998,7 +1003,7 @@ export default {
   width: 20px;
   height: 20px;
   border: 2px solid var(--border-color);
-  border-top-color: var(--accent-cyan);
+  border-top-color: var(--brand-600);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1109,11 +1114,10 @@ export default {
 
 .form-section > .section-title {
   margin: 0 0 16px 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--accent-cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
 .form-group {
@@ -1156,9 +1160,9 @@ export default {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px var(--accent-cyan-glow);
-  background: var(--bg-secondary);
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-600) 18%, transparent);
+  background: var(--bg-card);
 }
 
 .form-group textarea {
@@ -1200,7 +1204,7 @@ export default {
 .checkbox-label input {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent-cyan);
+  accent-color: var(--brand-600);
   cursor: pointer;
 }
 
@@ -1212,7 +1216,8 @@ export default {
 }
 
 .confirm-text strong {
-  color: var(--accent-cyan);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .confirm-warning {
