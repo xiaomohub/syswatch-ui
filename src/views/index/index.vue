@@ -41,7 +41,21 @@
           <span class="nav-text">告警统计</span>
         </router-link>
 
-        <router-link v-if="can(PERM.MENU_FAULT_CENTER)" to="/faultcenter" class="nav-item" active-class="active">
+        <router-link
+          to="/alert-mgmt/rules"
+          class="nav-item"
+          :class="{ active: route.path.startsWith('/alert-mgmt') }"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M12 8v4M12 16h.01"/>
+            </svg>
+          </span>
+          <span class="nav-text">告警管理</span>
+        </router-link>
+
+        <router-link to="/faultcenter" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2a10 10 0 1 0 10 10"/>
@@ -146,7 +160,9 @@
       </header>
 
       <div class="page-content">
-        <router-view />
+        <ViewErrorBoundary>
+          <router-view />
+        </ViewErrorBoundary>
       </div>
     </main>
 
@@ -178,6 +194,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { PERM } from '@/constants/rbac'
+import ViewErrorBoundary from '@/components/ViewErrorBoundary.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -195,6 +212,8 @@ const can = (code) => userStore.hasPermission(code)
 
 // Page title
 const pageTitle = computed(() => {
+  const fromRouteMeta = [...route.matched].reverse().find((r) => r.meta?.title)?.meta?.title
+  if (fromRouteMeta) return fromRouteMeta
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',

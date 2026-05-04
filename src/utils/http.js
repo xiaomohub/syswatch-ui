@@ -6,9 +6,13 @@ const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
+  config.headers = config.headers || {}
   if (token) {
-    config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const tenantId = localStorage.getItem('tenantId')
+  if (tenantId) {
+    config.headers.TenantID = tenantId
   }
   return config
 })

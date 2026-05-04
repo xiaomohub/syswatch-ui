@@ -6,6 +6,8 @@ export const PERM = {
   MENU_ALERT: 'menu:alert',
   MENU_FAULT_CENTER: 'menu:faultcenter',
   MENU_ALERT_CONFIG: 'menu:alertconfig',
+  /** WatchAlert：规则组 / 规则 / 活跃与历史事件 / 静默 */
+  MENU_ALERT_MGMT: 'menu:alert:mgmt',
   MENU_ALERT_SILENCE: 'menu:alertsilence',
   MENU_LOG_QUERY: 'menu:logquery',
   /** 智能诊断（根因 / 巡检 / 历史） */
@@ -28,6 +30,7 @@ export function defaultHomePath(hasPermission) {
     ['/faultcenter', PERM.MENU_FAULT_CENTER],
     ['/aiops-rca', PERM.MENU_AIOPS_RCA],
     ['/alertconfig', PERM.MENU_ALERT_CONFIG],
+    ['/alert-mgmt', PERM.MENU_ALERT_MGMT],
     ['/alertsilence', PERM.MENU_ALERT_SILENCE],
     ['/logquery', PERM.MENU_LOG_QUERY],
     ['/roleadmin', PERM.ADMIN_ROLE_MANAGE]

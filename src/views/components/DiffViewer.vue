@@ -80,9 +80,11 @@ const formatBlockType = (type) => {
 /* ==================== 容器 ==================== */
 .diff-viewer {
   width: 100%;
-  background: var(--bg-tertiary, #0f172a);
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+  color: #1a1a1a;
 }
 
 /* ==================== 空状态 ==================== */
@@ -92,18 +94,18 @@ const formatBlockType = (type) => {
   align-items: center;
   gap: 12px;
   padding: 40px 20px;
-  color: var(--text-muted, #64748b);
+  color: #555;
   font-size: 14px;
 }
 
 .diff-empty-state svg {
-  opacity: 0.3;
-  color: var(--text-muted, #64748b);
+  opacity: 0.35;
+  color: #555;
 }
 
 /* ==================== 差异块 ==================== */
 .diff-block {
-  border-bottom: 1px solid var(--border-color, #334155);
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .diff-block:last-child {
@@ -120,22 +122,16 @@ const formatBlockType = (type) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-color, #334155);
+  border-bottom: 1px solid #e0e0e0;
+  background: #f3f3f3;
+  color: #1a1a1a;
 }
 
-.block-delete {
-  background: rgba(239, 68, 68, 0.08);
-  color: #f87171;
-}
-
-.block-insert {
-  background: rgba(16, 185, 129, 0.08);
-  color: #10b981;
-}
-
+.block-delete,
+.block-insert,
 .block-change {
-  background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
+  background: #f3f3f3;
+  color: #1a1a1a;
 }
 
 .block-type-badge {
@@ -146,28 +142,20 @@ const formatBlockType = (type) => {
   letter-spacing: 0.3px;
 }
 
-.block-delete .block-type-badge {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-.block-insert .block-type-badge {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-}
-
+.block-delete .block-type-badge,
+.block-insert .block-type-badge,
 .block-change .block-type-badge {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: #e8e8e8;
+  color: #1a1a1a;
 }
 
 .block-range {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: inherit;
   font-size: 10px;
-  color: var(--text-muted, #64748b);
+  color: #555;
   margin-left: auto;
 }
 
@@ -195,53 +183,54 @@ const formatBlockType = (type) => {
 .diff-line {
   display: flex;
   align-items: flex-start;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: inherit;
   font-size: 12px;
   line-height: 1.6;
   padding: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #eee;
+  color: #1a1a1a;
 }
 
 .diff-line:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: #f5f5f5;
 }
 
 /* 删除行 */
 .diff-delete {
-  background: rgba(239, 68, 68, 0.08);
-  color: #fecaca;
+  background: #f7f7f7;
+  color: #1a1a1a;
 }
 
 .diff-delete:hover {
-  background: rgba(239, 68, 68, 0.12);
+  background: #efefef;
 }
 
 .diff-delete .line-prefix {
-  color: #f87171;
+  color: #333;
 }
 
 .diff-delete .line-number {
-  color: #f87171;
-  opacity: 0.6;
+  color: #555;
+  opacity: 0.85;
 }
 
 /* 新增行 */
 .diff-insert {
-  background: rgba(16, 185, 129, 0.08);
-  color: #d1fae5;
+  background: #f7f7f7;
+  color: #1a1a1a;
 }
 
 .diff-insert:hover {
-  background: rgba(16, 185, 129, 0.12);
+  background: #efefef;
 }
 
 .diff-insert .line-prefix {
-  color: #6ee7b7;
+  color: #333;
 }
 
 .diff-insert .line-number {
-  color: #6ee7b7;
-  opacity: 0.6;
+  color: #555;
+  opacity: 0.85;
 }
 
 /* ==================== 行元素 ==================== */

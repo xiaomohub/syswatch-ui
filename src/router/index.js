@@ -29,10 +29,66 @@ const routes = [
         meta: { title: '告警统计', permission: PERM.MENU_ALERT }
       },
       {
+        path: 'alert-mgmt',
+        component: () => import('../views/alert-mgmt/AlertMgmtLayout.vue'),
+        meta: { title: '告警管理' },
+        redirect: { name: 'AlertMgmtRules' },
+        children: [
+          {
+            path: 'rule-groups',
+            name: 'AlertMgmtRuleGroups',
+            component: () => import('../views/alert-mgmt/RuleGroupList.vue'),
+            meta: { title: '规则组' }
+          },
+          {
+            path: 'rules',
+            name: 'AlertMgmtRules',
+            component: () => import('../views/alert-mgmt/RuleList.vue'),
+            meta: { title: '告警规则' }
+          },
+          {
+            path: 'rules/create',
+            name: 'AlertMgmtRuleCreate',
+            component: () => import('../views/alert-mgmt/RuleForm.vue'),
+            meta: { title: '新建规则' }
+          },
+          {
+            path: 'rules/import',
+            name: 'AlertMgmtRuleImport',
+            component: () => import('../views/alert-mgmt/RuleImport.vue'),
+            meta: { title: '导入规则' }
+          },
+          {
+            path: 'rules/:ruleGroupId/:ruleId/edit',
+            name: 'AlertMgmtRuleEdit',
+            component: () => import('../views/alert-mgmt/RuleForm.vue'),
+            meta: { title: '编辑规则' }
+          },
+          {
+            path: 'events/current',
+            name: 'AlertMgmtEventsCurrent',
+            component: () => import('../views/alert-mgmt/EventCurrent.vue'),
+            meta: { title: '活跃告警' }
+          },
+          {
+            path: 'events/history',
+            name: 'AlertMgmtEventsHistory',
+            component: () => import('../views/alert-mgmt/EventHistory.vue'),
+            meta: { title: '历史告警' }
+          },
+          {
+            path: 'silences',
+            name: 'AlertMgmtSilences',
+            component: () => import('../views/alert-mgmt/SilenceList.vue'),
+            meta: { title: '静默' }
+          }
+        ]
+      },
+      {
         path: 'faultcenter',
         name: 'FaultCenter',
         component: () => import('../views/faultcenter/FaultCenter.vue'),
-        meta: { title: '故障中心', permission: PERM.MENU_FAULT_CENTER }
+        meta: { title: '故障中心' }
       },
       {
         path: 'aiops-rca',
@@ -127,10 +183,20 @@ router.afterEach((to) => {
 })
 
 /**
- * 错误处理
+ * 异步路由 chunk 加载失败（发版、CDN、网络）时给出恢复手段，避免白屏无提示
  */
 router.onError((error) => {
   console.error('路由错误:', error)
+  const msg = String(error?.message || error || '')
+  if (
+    /Loading chunk \d+ failed|Failed to fetch dynamically imported module|ChunkLoadError|Importing a module script failed/i.test(
+      msg
+    )
+  ) {
+    if (typeof window !== 'undefined' && window.confirm('页面脚本加载失败（可能已发布新版本），是否刷新？')) {
+      window.location.reload()
+    }
+  }
 })
 
 export default router

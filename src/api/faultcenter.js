@@ -1,47 +1,73 @@
 import http from '@/utils/http'
 
+/** WatchAlert 风格业务前缀 */
+export const W8T_BASE = '/api/w8t'
+export const SYSTEM_BASE = '/api/system'
+
 /**
- * 故障中心：按 WatchAlert 风格的“事件/工单”模型设计。
- * 说明：当前仅新增前端与接口约定，不对现有功能做改造。
+ * 解包统一响应：{ code: 200, data, msg }（兼容 code 0）
+ * @param {import('axios').AxiosResponse} res
  */
-
-/** axios 响应体解包：兼容 { data: T } 与直接 T */
-export function unwrapBody(res) {
-  const d = res?.data
-  if (d && typeof d === 'object' && 'data' in d && d.data !== undefined && d.data !== null) {
-    return d.data
+export function unwrapW8t(res) {
+  const outer = res?.data
+  if (outer == null) return outer
+  const code = outer.code
+  if (code !== 200 && code !== 0) {
+    const msg =
+      outer.msg ||
+      outer.message ||
+      (typeof outer.data === 'string' ? outer.data : '') ||
+      '请求失败'
+    const err = new Error(msg)
+    err.code = code
+    err.raw = outer
+    throw err
   }
-  return d
+  return outer.data
 }
 
-export function fetchIncidentStats(params) {
-  return http.get('/api/faultcenter/stats', { params })
+/** @param {Record<string, string|undefined>} params */
+export function faultCenterList(params) {
+  return http.get(`${W8T_BASE}/faultCenter/faultCenterList`, { params })
 }
 
-export function fetchIncidents(params) {
-  return http.get('/api/faultcenter/incidents', { params })
+/** @param {{ id?: string, name?: string }} params */
+export function faultCenterSearch(params) {
+  return http.get(`${W8T_BASE}/faultCenter/faultCenterSearch`, { params })
 }
 
-export function fetchIncidentDetail(id) {
-  return http.get(`/api/faultcenter/incidents/${encodeURIComponent(id)}`)
+export function faultCenterCreate(body) {
+  return http.post(`${W8T_BASE}/faultCenter/faultCenterCreate`, body, {
+    headers: { 'Content-Type': 'application/json' }
+  })
 }
 
-export function ackIncident(id, payload) {
-  return http.post(`/api/faultcenter/incidents/${encodeURIComponent(id)}/ack`, payload || {})
+export function faultCenterUpdate(body) {
+  return http.post(`${W8T_BASE}/faultCenter/faultCenterUpdate`, body, {
+    headers: { 'Content-Type': 'application/json' }
+  })
 }
 
-export function resolveIncident(id, payload) {
-  return http.post(`/api/faultcenter/incidents/${encodeURIComponent(id)}/resolve`, payload || {})
-}
-
-export function assignIncident(id, payload) {
-  return http.post(`/api/faultcenter/incidents/${encodeURIComponent(id)}/assign`, payload || {})
-}
-
-export function aiIncidentSummary(id, payload) {
+export function faultCenterDelete(id) {
   return http.post(
-    `/api/faultcenter/incidents/${encodeURIComponent(id)}/ai/summary`,
-    payload || {}
+    `${W8T_BASE}/faultCenter/faultCenterDelete`,
+    { id },
+    { headers: { 'Content-Type': 'application/json' } }
   )
 }
 
+export function faultCenterReset(body) {
+  return http.post(`${W8T_BASE}/faultCenter/faultCenterReset`, body, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+/** @param {{ id: string }} params */
+export function faultCenterSlo(params) {
+  return http.get(`${W8T_BASE}/faultCenter/slo`, { params })
+}
+
+/** @param {{ faultCenterId: string }} params */
+export function getDashboardInfo(params) {
+  return http.get(`${SYSTEM_BASE}/getDashboardInfo`, { params })
+}

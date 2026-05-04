@@ -78,6 +78,9 @@ export const useUserStore = defineStore('user', {
           roles: Array.isArray(user.roles) ? user.roles : []
         }
         localStorage.setItem(LS_USER, JSON.stringify(this.profile))
+        if (user.tenantId != null && String(user.tenantId).trim() !== '') {
+          localStorage.setItem('tenantId', String(user.tenantId).trim())
+        }
       }
       if (permissionsOmitted) {
         this.rbacLegacyMode = true
@@ -101,6 +104,7 @@ export const useUserStore = defineStore('user', {
       localStorage.removeItem(LS_USER)
       localStorage.removeItem(LS_PERMS)
       localStorage.removeItem(LS_LEGACY)
+      localStorage.removeItem('tenantId')
     }
   }
 })
