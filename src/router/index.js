@@ -6,7 +6,7 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/login/login.vue'),
+    component: () => import('../views/login/Login.vue'),
     meta: { requiresAuth: false, title: '登录' }
   },
   {
@@ -81,15 +81,79 @@ const routes = [
             name: 'AlertMgmtSilences',
             component: () => import('../views/alert-mgmt/SilenceList.vue'),
             meta: { title: '静默' }
+          },
+          {
+            path: 'notice',
+            name: 'NoticeList',
+            component: () => import('../views/notice/NoticeList.vue'),
+            meta: { title: '通知对象' }
+          },
+          {
+            path: 'notice/create',
+            name: 'NoticeCreate',
+            component: () => import('../views/notice/NoticeFormPage.vue'),
+            meta: { title: '新建通知对象' }
+          },
+          {
+            path: 'notice/records',
+            name: 'NoticeRecords',
+            component: () => import('../views/notice/NoticeRecords.vue'),
+            meta: { title: '通知记录' }
+          },
+          {
+            path: 'notice/metrics',
+            name: 'NoticeMetrics',
+            component: () => import('../views/notice/NoticeMetrics.vue'),
+            meta: { title: '通知统计' }
+          },
+          {
+            path: 'notice/:uuid/edit',
+            name: 'NoticeEdit',
+            component: () => import('../views/notice/NoticeFormPage.vue'),
+            meta: { title: '编辑通知对象' }
           }
         ]
       },
       {
-        path: 'faultcenter',
-        name: 'FaultCenter',
-        component: () => import('../views/faultcenter/FaultCenter.vue'),
-        meta: { title: '故障中心' }
+        path: 'fault-center',
+        component: () => import('../views/faultcenter/FaultCenterLayout.vue'),
+        redirect: { name: 'FaultCenterList' },
+        meta: { title: '故障中心' },
+        children: [
+          {
+            path: '',
+            name: 'FaultCenterList',
+            component: () => import('../views/faultcenter/FaultCenterList.vue'),
+            meta: { title: '故障中心' }
+          },
+          {
+            path: 'create',
+            name: 'FaultCenterCreate',
+            component: () => import('../views/faultcenter/FaultCenterFormPage.vue'),
+            meta: { title: '新建故障中心' }
+          },
+          {
+            path: ':id/edit',
+            name: 'FaultCenterEdit',
+            component: () => import('../views/faultcenter/FaultCenterFormPage.vue'),
+            meta: { title: '编辑故障中心' }
+          },
+          {
+            path: ':id/slo',
+            name: 'FaultCenterSlo',
+            component: () => import('../views/faultcenter/FaultCenterSloPage.vue'),
+            meta: { title: 'SLO 看板' }
+          },
+          {
+            path: 'workbench',
+            name: 'FaultCenterWorkbench',
+            component: () => import('../views/faultcenter/FaultCenterWorkbenchPage.vue'),
+            meta: { title: '工作台' }
+          }
+        ]
       },
+      { path: 'faultcenter', redirect: '/fault-center' },
+      { path: 'workbench', redirect: { name: 'FaultCenterWorkbench' } },
       {
         path: 'aiops-rca',
         name: 'AiopsCenter',

@@ -12,10 +12,12 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "lint": "eslint . --fix --cache"
+    "lint": "eslint . --fix --cache",
+    "dashboard-api": "node scripts/dashboard-overview-api.mjs"
   },
   "dependencies": {
     "axios": "^1.13.3",
+    "echarts": "^6.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.26",
     "vue-router": "^4.6.4"

@@ -55,7 +55,11 @@
           <span class="nav-text">告警管理</span>
         </router-link>
 
-        <router-link to="/faultcenter" class="nav-item" active-class="active">
+        <router-link
+          to="/fault-center"
+          class="nav-item"
+          :class="{ active: route.path.startsWith('/fault-center') }"
+        >
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2a10 10 0 1 0 10 10"/>
@@ -217,7 +221,7 @@ const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',
-    '/faultcenter': '故障中心',
+    '/fault-center': '故障中心',
     '/aiops-rca': '智能诊断',
     '/alertsilence': '告警静默',
     '/alertinhibit': '告警抑制',

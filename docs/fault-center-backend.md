@@ -309,3 +309,32 @@
 | 工作台 | GET | `/api/system/getDashboardInfo` |
 
 `event/*`、`rule/*`、`silence/*` 等同理，按 WatchAlert 路由注册与中间件实际挂载为准。
+
+---
+
+## 17. 告警统计、业务分类与列表扩展字段（产品 / 后端建议）
+
+### 17.1 与「告警统计」的关系
+
+- **故障中心列表**接口（`faultCenterList`）在 WatchAlert 实现中会为每条记录填充 `currentPreAlertNumber`、`currentAlertNumber`、`currentRecoverNumber`（按 Redis 中该中心下事件状态统计）。前端在「故障中心」页以三列数字展示，即**按中心的实时告警统计**。
+- 若需要**按告警类型 / 业务线 / 数据库 / 中间件**维度看统计，推荐**多故障中心**建模：每个维度（或每个租户下的子域）一个中心，将对应告警规则绑定到该中心（`faultCenterId`）；规则上的 **labels** 仍可配合 `noticeRoutes` 做通知分流。
+- 更细粒度「按类型聚合的仪表盘」可由后端新增接口（例如按 `faultCenterId` + 时间范围 + `group by ruleGroup/label`）提供；本仓库前端可在故障中心详情或独立看板中消费，与现有 List 三列互补。
+
+### 17.2 列表展示「分类」列（可选扩展）
+
+本仓库前端在列表增加 **「分类」**列，优先展示以下字段（任一存在即可，字符串化后截断显示）：
+
+| 优先级 | 字段 | 说明 |
+|--------|------|------|
+| 1 | `category` | 业务自定义分类，如 `mysql`、`kafka`、`订单域` |
+| 2 | `scope` | 与 `category` 二选一，语义由产品约定 |
+| 3 | `tags` | 字符串数组，拼接为 `、` 分隔 |
+| 4 | `labels` | 对象数组时可取 `name` 或 `key` 拼接 |
+
+后端若尚未返回上述字段，列显示为「—」，不影响接口兼容。扩展时建议在 `w8t_fault_center` 或 List 的 DTO 中增加 `category`/`scope`/`tags`（及 JSON tag），与前端 `FaultCenter.vue` 中 `scopeLabel` 一致。
+
+### 17.3 与「简易创建」表单的契约
+
+前端「新建故障中心」仅提交最小集合：**名称、描述、通知对象 ID 列表、统一重复通知间隔（分钟，映射到 `repeatNoticeInterval` 的 P0–P3 相同值）、恢复是否通知、事件聚合（`aggregationType`）、恢复等待秒数**；`noticeRoutes` 置空数组，升级相关字段为关闭/默认。
+
+编辑时可展开「高级选项」维护 `noticeRoutes`、分等级重复间隔与告警升级策略；**更新**仍走 `faultCenterUpdate` 全量字段，后端行为与现有模型一致。

@@ -7,7 +7,7 @@
           <line x1="12" y1="16" x2="12" y2="12"/>
           <line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
-        <span>Grafana 跳转与入口列表为前端静态配置（内网 Wireguard：<code>10.0.0.0/24</code>）。</span>
+        <span>Grafana 跳转与入口列表为前端静态配置（内网 Wireguard：<code>10.0.0.0/24</code>）。CPU/内存/网络卡片请求 <code>/api/dashboard/overview</code>，开发时经 Vite 代理到后端（默认 <code>localhost:8080</code>）；Prometheus/VM 查询根地址由后端配置，见仓库 <code>docs/dashboard-overview-backend.md</code>。</span>
       </div>
       <div class="toolbar-actions">
         <template v-if="canGrafana && grafanaHome">
@@ -53,7 +53,7 @@
 
     <section class="monitors-section" v-if="monitors.length > 0">
       <h2 class="section-title">监控入口</h2>
-      <p class="section-desc">以下为后端下发的快捷入口，点击在新标签页打开（多为 Grafana 看板或网关代理地址）。</p>
+      <p class="section-desc">以下为内网 Grafana 监控大盘入口，点击在新标签页打开。</p>
       <ul class="monitor-list">
         <li v-for="m in monitors" :key="m.id || m.url">
           <button type="button" class="monitor-row" @click="openExternal(m.url)">
@@ -72,10 +72,7 @@
 
     <section class="monitors-section empty" v-else-if="!loading">
       <h2 class="section-title">监控入口</h2>
-      <p class="section-desc muted">
-        当前未返回列表。请在后端 <code>GET /api/dashboard/overview</code> 的 <code>monitors</code> 数组中配置标题与
-        <code>url</code>（详见 <code>docs/dashboard-api.md</code>）。
-      </p>
+      <p class="section-desc muted">当前无监控入口配置，请检查前端静态列表或网络。</p>
     </section>
 
     <p v-if="asOfText" class="as-of">数据时间：{{ asOfText }}</p>
@@ -86,6 +83,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { PERM } from '@/constants/rbac'
+import { fetchDashboardOverview, unwrapBody } from '@/api/dashboard'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -94,7 +92,16 @@ const grafanaExplore = ref('')
 const monitors = ref([])
 const asOfText = ref('')
 
-const GRAFANA_BASE_URL = 'http://10.0.0.1:3000/'
+const GRAFANA_ORIGIN = 'http://10.0.0.1:3000'
+const GRAFANA_BASE_URL = `${GRAFANA_ORIGIN}/`
+
+/** 内网 Grafana 监控大盘 */
+const GRAFANA_DASHBOARDS = {
+  mysql: `${GRAFANA_ORIGIN}/d/mysql-monitor-cn-v1/`,
+  pgsql: `${GRAFANA_ORIGIN}/d/pgsql-monitor-cn-v1/`,
+  kafka: `${GRAFANA_ORIGIN}/d/kafka-monitor-cn-v1/`,
+  cvm: `${GRAFANA_ORIGIN}/d/cvm-monitor-cn-v1/`
+}
 
 const canGrafana = computed(
   () => userStore.rbacLegacyMode || userStore.hasPermission(PERM.MONITOR_GRAFANA_DIRECT)
@@ -188,18 +195,45 @@ async function loadOverview() {
   loading.value = true
   try {
     grafanaHome.value = GRAFANA_BASE_URL
-    grafanaExplore.value = `${GRAFANA_BASE_URL.replace(/\/+$/, '')}/explore`
+    grafanaExplore.value = `${GRAFANA_ORIGIN}/explore`
     monitors.value = [
       {
         id: 'mysql',
-        title: 'MySQL',
-        description: 'MySQL 监控看板',
-        url: GRAFANA_BASE_URL,
+        title: 'MySQL 监控大盘',
+        description: 'mysql-monitor-cn-v1',
+        url: GRAFANA_DASHBOARDS.mysql,
+        badge: 'Grafana'
+      },
+      {
+        id: 'pgsql',
+        title: 'PostgreSQL 监控大盘',
+        description: 'pgsql-monitor-cn-v1',
+        url: GRAFANA_DASHBOARDS.pgsql,
+        badge: 'Grafana'
+      },
+      {
+        id: 'kafka',
+        title: 'Kafka 监控大盘',
+        description: 'kafka-monitor-cn-v1',
+        url: GRAFANA_DASHBOARDS.kafka,
+        badge: 'Grafana'
+      },
+      {
+        id: 'cvm',
+        title: 'CVM 监控大盘',
+        description: 'cvm-monitor-cn-v1',
+        url: GRAFANA_DASHBOARDS.cvm,
         badge: 'Grafana'
       }
     ]
     asOfText.value = ''
-  } catch (e) {
+    try {
+      const res = await fetchDashboardOverview()
+      applyMetrics(unwrapBody(res))
+    } catch {
+      /* 指标接口未就绪或非 POST 契约时保留占位 */
+    }
+  } catch {
     grafanaHome.value = ''
     grafanaExplore.value = ''
     monitors.value = []

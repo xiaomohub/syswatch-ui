@@ -61,12 +61,71 @@ import http from '@/utils/http'
 import { useUserStore } from '@/store/user'
 import { defaultHomePath } from '@/constants/rbac'
 import router from '@/router'
+import { isNavigationFailure, NavigationFailureType } from 'vue-router'
 
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
 const userStore = useUserStore()
+
+/** 合并常见嵌套：{ data }, { result }, { payload }, data 内再包一层 data */
+function flattenLoginEnvelope(raw) {
+  let root = raw
+  if (typeof root === 'string') {
+    try {
+      root = JSON.parse(root)
+    } catch {
+      return {}
+    }
+  }
+  if (!root || typeof root !== 'object') return {}
+  const out = { ...root }
+  const nest = [root.data, root.result, root.payload, root.data?.data]
+  for (const layer of nest) {
+    if (layer && typeof layer === 'object') Object.assign(out, layer)
+  }
+  return out
+}
+
+function pickToken(flat) {
+  const t =
+    flat.token ??
+    flat.accessToken ??
+    flat.access_token ??
+    flat.jwt ??
+    flat.id_token ??
+    flat.bearerToken
+  return t != null && String(t).trim() !== '' ? String(t).trim() : null
+}
+
+function hardNavigateTo(pathOrFull) {
+  if (/^https?:\/\//i.test(pathOrFull)) {
+    window.location.assign(pathOrFull)
+    return
+  }
+  const p = pathOrFull.startsWith('/') ? pathOrFull : `/${pathOrFull}`
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+  window.location.assign(`${window.location.origin}${base}${p}`)
+}
+
+function resolvePostLoginTarget(hasPermission) {
+  const redirect = router.currentRoute.value.query.redirect
+  if (typeof redirect === 'string' && redirect.trim()) {
+    const r = redirect.trim()
+    if (/^https?:\/\//i.test(r)) {
+      try {
+        const u = new URL(r)
+        if (u.origin === window.location.origin) return u.pathname + u.search + u.hash
+      } catch {
+        /* ignore */
+      }
+      return defaultHomePath(hasPermission)
+    }
+    return r.startsWith('/') ? r : `/${r}`
+  }
+  return defaultHomePath(hasPermission)
+}
 
 const doLogin = async () => {
   error.value = ''
@@ -77,23 +136,30 @@ const doLogin = async () => {
       username: username.value,
       password: password.value
     })
-    const data = res.data || {}
-    const token = data.token
+    const flat = flattenLoginEnvelope(res.data)
+    const token = pickToken(flat)
     if (!token) {
-      error.value = '登录响应缺少 token'
+      error.value =
+        '登录响应缺少 token（支持字段：token / accessToken / access_token / jwt 等，可嵌套在 data、result 内）'
       return
     }
-    const permissionsOmitted = !Object.prototype.hasOwnProperty.call(data, 'permissions')
+    const hasPermKey = Object.prototype.hasOwnProperty.call(flat, 'permissions')
+    const permissionsOmitted = !hasPermKey
+    const permissions = hasPermKey ? flat.permissions : undefined
     userStore.setSession({
       token,
-      user: data.user,
-      permissions: data.permissions,
+      user: flat.user,
+      permissions,
       permissionsOmitted
     })
-    const redirect = router.currentRoute.value.query.redirect
-    const target =
-      typeof redirect === 'string' && redirect ? redirect : defaultHomePath(userStore.hasPermission)
-    router.push(target)
+    const target = resolvePostLoginTarget(userStore.hasPermission)
+    try {
+      await router.replace(target)
+    } catch (navErr) {
+      if (isNavigationFailure(navErr, NavigationFailureType.duplicated)) return
+      console.warn('[login] router.replace 未完成，使用整页跳转', navErr)
+      hardNavigateTo(target)
+    }
   } catch (e) {
     error.value = e.response?.data?.message || e.response?.data || e.message || '登录失败'
   } finally {

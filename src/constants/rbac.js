@@ -22,21 +22,25 @@ export const PERM = {
 /** 旧后端仅返回 token、无 permissions 数组时，视为全量兼容 */
 export const LEGACY_FULL_PERMISSIONS = Object.values(PERM)
 
-/** 登录后默认进入的第一个有权限的菜单路径 */
+/**
+ * 登录后默认进入的第一个有权限的菜单路径。
+ * 若 JWT 未包含任何已知菜单权限，则落在「故障中心」（该路由未挂 permission，登录用户均可访问），
+ * 避免误进「无权限」页看起来像未跳转。
+ */
 export function defaultHomePath(hasPermission) {
   const order = [
     ['/dashboard', PERM.MENU_DASHBOARD],
     ['/alert', PERM.MENU_ALERT],
-    ['/faultcenter', PERM.MENU_FAULT_CENTER],
     ['/aiops-rca', PERM.MENU_AIOPS_RCA],
     ['/alertconfig', PERM.MENU_ALERT_CONFIG],
     ['/alert-mgmt', PERM.MENU_ALERT_MGMT],
     ['/alertsilence', PERM.MENU_ALERT_SILENCE],
     ['/logquery', PERM.MENU_LOG_QUERY],
-    ['/roleadmin', PERM.ADMIN_ROLE_MANAGE]
+    ['/roleadmin', PERM.ADMIN_ROLE_MANAGE],
+    ['/fault-center', PERM.MENU_FAULT_CENTER]
   ]
   for (const [path, code] of order) {
     if (hasPermission(code)) return path
   }
-  return '/forbidden'
+  return '/fault-center'
 }

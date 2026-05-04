@@ -26,7 +26,7 @@
           </option>
         </select>
         <span v-if="fcStore.error" class="am-fc-err">{{ fcStore.error }}</span>
-        <RouterLink to="/faultcenter" class="am-link">维护故障中心</RouterLink>
+        <RouterLink to="/fault-center" class="am-link">维护故障中心</RouterLink>
       </div>
     </div>
     <p v-if="!fcId && !fcStore.loading" class="am-hint">
@@ -52,7 +52,10 @@ const nav = [
   { to: '/alert-mgmt/rules', label: '告警规则' },
   { to: '/alert-mgmt/events/current', label: '活跃告警' },
   { to: '/alert-mgmt/events/history', label: '历史告警' },
-  { to: '/alert-mgmt/silences', label: '静默' }
+  { to: '/alert-mgmt/silences', label: '静默' },
+  { to: '/alert-mgmt/notice', label: '通知对象' },
+  { to: '/alert-mgmt/notice/records', label: '通知记录' },
+  { to: '/alert-mgmt/notice/metrics', label: '通知统计' }
 ]
 
 function onFcChange() {
