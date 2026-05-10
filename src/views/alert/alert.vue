@@ -1,12 +1,29 @@
 <template>
   <div class="alert-page">
+    <div class="fc-page-head fc-head-unified">
+      <div class="fc-head-start">
+        <button
+          type="button"
+          class="fc-back-dashboard"
+          aria-label="返回监控面板"
+          title="返回监控面板"
+          @click="goDashboard"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <h2>告警统计</h2>
+      </div>
+    </div>
+
     <!-- Alert Overview -->
     <div class="alert-overview">
       <div 
         class="alert-stat-card" 
         v-for="stat in alertStats" 
         :key="stat.type"
-        :class="stat.type"
+        :class="[stat.type, { active: severityFilter === stat.type || (stat.type === 'resolved' && statusFilter === 'resolved') }]"
         @click="filterBySeverity(stat.type)"
       >
         <div class="alert-stat-icon" v-html="stat.icon"></div>
@@ -28,6 +45,7 @@
             placeholder="搜索告警名称..." 
             v-model="searchQuery"
             class="search-input"
+            @keyup.enter="handleSearch"
           >
         </div>
         <select class="filter-select" v-model="severityFilter">
@@ -35,6 +53,11 @@
           <option value="critical">严重</option>
           <option value="warning">警告</option>
           <option value="info">提示</option>
+        </select>
+        <select class="filter-select" v-model="statusFilter">
+          <option value="">全部状态</option>
+          <option value="firing">活动中</option>
+          <option value="resolved">已解决</option>
         </select>
         <input 
           type="datetime-local" 
@@ -48,10 +71,17 @@
           v-model="endTimeFilter"
           placeholder="结束时间"
         >
+        <button class="btn btn-text" @click="resetFilters" v-if="hasActiveFilters">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          清除筛选
+        </button>
       </div>
       <div class="action-group">
         <button class="btn btn-secondary" @click="loadAlerts" :disabled="loading">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spinning: loading }">
             <polyline points="23 4 23 10 17 10"/>
             <polyline points="1 20 1 14 7 14"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -118,6 +148,18 @@
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </button>
+            <button
+              v-if="canAiopsRca"
+              class="icon-btn aiops-btn"
+              type="button"
+              title="智能诊断 · 根因分析"
+              @click="goAiopsRca(alert)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
+                <path d="M9 18h6M10 22h4M8 14h8"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -138,10 +180,22 @@
       <!-- Pagination -->
       <div class="pagination" v-if="!loading && alertData.records && alertData.records.length > 0">
         <span class="pagination-info">
-          共 {{ alertData.total }} 条告警，当前显示第 {{ alertData.current }} 页
+          共 {{ alertData.total }} 条告警，当前显示第 {{ currentPage }} / {{ totalPages }} 页
         </span>
         <div class="pagination-controls">
-          <button class="page-btn" :disabled="alertData.current === 1" @click="currentPage--">
+          <select class="page-size-select" v-model="pageSize">
+            <option :value="10">10条/页</option>
+            <option :value="20">20条/页</option>
+            <option :value="50">50条/页</option>
+            <option :value="100">100条/页</option>
+          </select>
+          <button class="page-btn" :disabled="currentPage <= 1" @click="goToPage(1)" title="首页">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="11 17 6 12 11 7"/>
+              <polyline points="18 17 13 12 18 7"/>
+            </svg>
+          </button>
+          <button class="page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)" title="上一页">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
@@ -151,15 +205,22 @@
               v-for="page in displayPages" 
               :key="page"
               class="page-num"
-              :class="{ active: page === alertData.current }"
-              @click="currentPage = page"
+              :class="{ active: page === currentPage, ellipsis: page === '...' }"
+              @click="page !== '...' && goToPage(page)"
+              :disabled="page === '...'"
             >
               {{ page }}
             </button>
           </span>
-          <button class="page-btn" :disabled="alertData.current >= alertData.pages" @click="currentPage++">
+          <button class="page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)" title="下一页">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+          <button class="page-btn" :disabled="currentPage >= totalPages" @click="goToPage(totalPages)" title="末页">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="13 17 18 12 13 7"/>
+              <polyline points="6 17 11 12 6 7"/>
             </svg>
           </button>
         </div>
@@ -216,7 +277,11 @@
               <span class="detail-label">恢复时间</span>
               <span class="detail-value mono">{{ formatTime(selectedAlert.endsAt) }}</span>
             </div>
-            <div class="detail-section" v-if="parsedLabels">
+            <div class="detail-row" v-if="selectedAlert.endsAt && selectedAlert.startsAt">
+              <span class="detail-label">持续时间</span>
+              <span class="detail-value mono">{{ calculateDuration(selectedAlert.startsAt, selectedAlert.endsAt) }}</span>
+            </div>
+            <div class="detail-section" v-if="parsedLabels && Object.keys(parsedLabels).length > 0">
               <span class="detail-label">标签 (Labels)</span>
               <div class="tags-container">
                 <span class="label-tag" v-for="(value, key) in parsedLabels" :key="key">
@@ -225,7 +290,7 @@
                 </span>
               </div>
             </div>
-            <div class="detail-section" v-if="parsedAnnotations">
+            <div class="detail-section" v-if="parsedAnnotations && Object.keys(parsedAnnotations).length > 0">
               <span class="detail-label">注解 (Annotations)</span>
               <div class="tags-container">
                 <span class="label-tag" v-for="(value, key) in parsedAnnotations" :key="key">
@@ -236,6 +301,14 @@
             </div>
           </div>
           <div class="modal-footer">
+            <button
+              v-if="canAiopsRca && selectedAlert"
+              type="button"
+              class="btn btn-primary"
+              @click="goAiopsRcaFromDetail"
+            >
+              智能诊断
+            </button>
             <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
           </div>
         </div>
@@ -245,13 +318,47 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import '../faultcenter/faultCenterCommon.css'
+import http from '@/utils/http'
+import { useUserStore } from '@/store/user'
+import { ACCESS_LEVEL } from '@/constants/rbac'
+
+const router = useRouter()
+const userStore = useUserStore()
+const canAiopsRca = computed(() => userStore.accessLevel >= ACCESS_LEVEL.ADMIN)
+
+function goDashboard() {
+  router.push({ name: 'Dashboard' })
+}
+
+const AIOPS_PREFILL_KEY = 'aiops_rca_prefill'
+
+function goAiopsRca(alert) {
+  sessionStorage.setItem(
+    AIOPS_PREFILL_KEY,
+    JSON.stringify({
+      alertId: alert.id,
+      alertName: alert.alertName,
+      summary: alert.summary,
+      description: alert.description,
+      startsAt: alert.startsAt
+    })
+  )
+  router.push('/aiops-rca')
+}
+
+function goAiopsRcaFromDetail() {
+  if (!selectedAlert.value) return
+  goAiopsRca(selectedAlert.value)
+  showDetailModal.value = false
+}
 
 // API base URL
 const API_BASE_URL = '/api/alerts'
 
-// Alert stats
+// Alert stats - 从后端获取全局统计
 const alertStats = ref([
   {
     type: 'critical',
@@ -282,12 +389,14 @@ const alertStats = ref([
 // Filters
 const searchQuery = ref('')
 const severityFilter = ref('')
+const statusFilter = ref('')
 const startTimeFilter = ref('')
 const endTimeFilter = ref('')
 
-// Pagination
+// Pagination - 统一使用这些状态
 const currentPage = ref(1)
 const pageSize = ref(10)
+const totalPages = computed(() => Math.ceil(alertData.value.total / pageSize.value) || 1)
 
 // Modal
 const showDetailModal = ref(false)
@@ -296,21 +405,50 @@ const selectedAlert = ref(null)
 // Data
 const alertData = ref({
   records: [],
-  total: 0,
-  current: 1,
-  pages: 1
+  total: 0
 })
 
 const loading = ref(false)
 
-// Computed
+// 搜索防抖定时器
+let searchTimer = null
+
+// 判断是否有激活的筛选条件
+const hasActiveFilters = computed(() => {
+  return searchQuery.value || severityFilter.value || statusFilter.value || startTimeFilter.value || endTimeFilter.value
+})
+
+// Computed - 优化的分页显示逻辑
 const displayPages = computed(() => {
   const pages = []
-  const totalPages = alertData.value.pages || 1
-  const current = alertData.value.current || 1
+  const total = totalPages.value
+  const current = currentPage.value
   
-  for (let i = Math.max(1, current - 2); i <= Math.min(totalPages, current + 2); i++) {
-    pages.push(i)
+  if (total <= 7) {
+    // 总页数小于等于7，显示所有页码
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // 总页数大于7，使用省略号
+    if (current <= 4) {
+      // 当前页靠近开头
+      for (let i = 1; i <= 5; i++) pages.push(i)
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      // 当前页靠近结尾
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) pages.push(i)
+    } else {
+      // 当前页在中间
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) pages.push(i)
+      pages.push('...')
+      pages.push(total)
+    }
   }
   return pages
 })
@@ -349,18 +487,14 @@ const getSeverityLabel = (severity) => {
 }
 
 const getStatusLabel = (status, endsAt) => {
-  if (status === 'firing' || !endsAt) {
-    return '活动中'
-  } else if (status === 'resolved' || endsAt) {
+  if (status === 'resolved' || endsAt) {
     return '已解决'
   }
-  return status
+  return '活动中'
 }
 
 const getStatusClass = (alert) => {
-  if (alert.status === 'firing' || !alert.endsAt) {
-    return 'active'
-  } else if (alert.status === 'resolved' || alert.endsAt) {
+  if (alert.status === 'resolved' || alert.endsAt) {
     return 'resolved'
   }
   return 'active'
@@ -370,6 +504,7 @@ const formatTime = (dateString) => {
   if (!dateString) return '-'
   try {
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return dateString
     return date.toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
@@ -383,6 +518,49 @@ const formatTime = (dateString) => {
   }
 }
 
+// 计算持续时间
+const calculateDuration = (startTime, endTime) => {
+  try {
+    const start = new Date(startTime)
+    const end = new Date(endTime)
+    const diff = end - start
+    
+    if (diff < 0) return '-'
+    
+    const seconds = Math.floor(diff / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+    
+    if (days > 0) {
+      return `${days}天 ${hours % 24}小时 ${minutes % 60}分钟`
+    } else if (hours > 0) {
+      return `${hours}小时 ${minutes % 60}分钟`
+    } else if (minutes > 0) {
+      return `${minutes}分钟 ${seconds % 60}秒`
+    } else {
+      return `${seconds}秒`
+    }
+  } catch {
+    return '-'
+  }
+}
+
+// 格式化时间参数用于API请求
+const formatTimeForAPI = (dateString) => {
+  if (!dateString) return null
+  try {
+    // datetime-local 格式: "2024-01-01T10:00"
+    // 转换为 ISO 格式或后端需要的格式
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return null
+    return date.toISOString()
+  } catch {
+    return null
+  }
+}
+
+// 加载告警数据
 const loadAlerts = async () => {
   loading.value = true
   try {
@@ -391,46 +569,88 @@ const loadAlerts = async () => {
       pageSize: pageSize.value
     }
 
-    if (searchQuery.value) {
-      params.alertName = searchQuery.value
+    // 添加搜索条件
+    if (searchQuery.value?.trim()) {
+      params.alertName = searchQuery.value.trim()
     }
     if (severityFilter.value) {
       params.severity = severityFilter.value
     }
-    if (startTimeFilter.value) {
-    params.startTime = startTimeFilter.value
+    if (statusFilter.value) {
+      params.status = statusFilter.value
     }
-    if (endTimeFilter.value) {
-      params.endTime = endTimeFilter.value
+    
+    // 格式化时间参数
+    const formattedStartTime = formatTimeForAPI(startTimeFilter.value)
+    const formattedEndTime = formatTimeForAPI(endTimeFilter.value)
+    
+    if (formattedStartTime) {
+      params.startTime = formattedStartTime
+    }
+    if (formattedEndTime) {
+      params.endTime = formattedEndTime
     }
 
-
-    const response = await axios.get(`${API_BASE_URL}/history`, { params })
+    const response = await http.get(`${API_BASE_URL}/history`, { params })
     
     // 处理分页数据结构
     alertData.value = {
       records: response.data.records || [],
-      total: response.data.total || 0,
-      current: response.data.current || currentPage.value,
-      pages: response.data.pages || 1
+      total: response.data.total || 0
     }
 
-    // 更新统计数据
-    updateStats(response.data.records || [])
+    // 如果当前页超过总页数，重置到最后一页
+    if (currentPage.value > totalPages.value && totalPages.value > 0) {
+      currentPage.value = totalPages.value
+    }
+
+    // 加载统计数据（单独接口或从响应中获取）
+    await loadStats()
+    
   } catch (error) {
     console.error('加载告警失败:', error)
     alertData.value = {
       records: [],
-      total: 0,
-      current: 1,
-      pages: 1
+      total: 0
     }
   } finally {
     loading.value = false
   }
 }
 
-const updateStats = (records) => {
+// 单独加载统计数据 - 全局统计，不受当前页影响
+const loadStats = async () => {
+  try {
+    // 方案1: 如果后端有单独的统计接口
+    // const response = await http.get(`${API_BASE_URL}/stats`)
+    // updateStatsFromServer(response.data)
+    
+    // 方案2: 如果后端在分页接口中返回统计数据
+    // 假设后端返回 { records, total, stats: { critical, warning, info, resolved } }
+    
+    // 方案3: 临时方案 - 请求全部数据的统计（仅用于演示，生产环境应使用后端统计）
+    const response = await http.get(`${API_BASE_URL}/stats`)
+    if (response.data) {
+      updateStatsFromServer(response.data)
+    }
+  } catch (error) {
+    // 如果统计接口不存在，使用当前页数据（不推荐）
+    console.warn('统计接口调用失败，使用当前页数据统计:', error)
+    updateStatsFromCurrentPage()
+  }
+}
+
+// 从服务器统计数据更新
+const updateStatsFromServer = (stats) => {
+  alertStats.value.forEach(stat => {
+    if (stats[stat.type] !== undefined) {
+      stat.count = stats[stat.type]
+    }
+  })
+}
+
+// 从当前页数据更新统计（备用方案）
+const updateStatsFromCurrentPage = () => {
   const stats = {
     critical: 0,
     warning: 0,
@@ -438,7 +658,7 @@ const updateStats = (records) => {
     resolved: 0
   }
 
-  records.forEach(alert => {
+  alertData.value.records.forEach(alert => {
     if (alert.status === 'resolved' || alert.endsAt) {
       stats.resolved++
     } else if (alert.severity === 'critical') {
@@ -451,73 +671,157 @@ const updateStats = (records) => {
   })
 
   alertStats.value.forEach(stat => {
-    if (stat.type === 'critical') stat.count = stats.critical
-    else if (stat.type === 'warning') stat.count = stats.warning
-    else if (stat.type === 'info') stat.count = stats.info
-    else if (stat.type === 'resolved') stat.count = stats.resolved
+    stat.count = stats[stat.type] || 0
   })
 }
 
+// 通过点击统计卡片筛选
 const filterBySeverity = (type) => {
   if (type === 'resolved') {
-    // 已解决的告警处理逻辑
     severityFilter.value = ''
+    statusFilter.value = statusFilter.value === 'resolved' ? '' : 'resolved'
   } else {
-    severityFilter.value = type
+    statusFilter.value = ''
+    severityFilter.value = severityFilter.value === type ? '' : type
   }
+  // 重置页码并加载 - watch 会自动触发
+}
+
+// 重置所有筛选条件
+const resetFilters = () => {
+  searchQuery.value = ''
+  severityFilter.value = ''
+  statusFilter.value = ''
+  startTimeFilter.value = ''
+  endTimeFilter.value = ''
   currentPage.value = 1
   loadAlerts()
 }
 
+// 搜索处理（回车触发）
+const handleSearch = () => {
+  currentPage.value = 1
+  loadAlerts()
+}
+
+// 跳转到指定页
+const goToPage = (page) => {
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return
+  currentPage.value = page
+}
+
+// 查看详情
 const viewDetail = (alert) => {
   selectedAlert.value = alert
   showDetailModal.value = true
 }
 
-const exportAlerts = () => {
+// 导出告警
+const exportAlerts = async () => {
   if (!alertData.value.records || alertData.value.records.length === 0) {
     alert('暂无数据可导出')
     return
   }
 
-  // 构建CSV数据
-  const headers = ['告警ID', '告警名称', '级别', '摘要', '触发时间', '恢复时间', '状态']
-  const rows = alertData.value.records.map(alert => [
-    alert.id,
-    alert.alertName,
-    getSeverityLabel(alert.severity),
-    alert.summary,
-    formatTime(alert.startsAt),
-    alert.endsAt ? formatTime(alert.endsAt) : '-',
-    getStatusLabel(alert.status, alert.endsAt)
-  ])
+  try {
+    // 获取所有符合当前筛选条件的数据用于导出
+    const params = {
+      pageNum: 1,
+      pageSize: alertData.value.total || 1000 // 导出全部
+    }
+    
+    if (searchQuery.value?.trim()) {
+      params.alertName = searchQuery.value.trim()
+    }
+    if (severityFilter.value) {
+      params.severity = severityFilter.value
+    }
+    if (statusFilter.value) {
+      params.status = statusFilter.value
+    }
+    if (startTimeFilter.value) {
+      params.startTime = formatTimeForAPI(startTimeFilter.value)
+    }
+    if (endTimeFilter.value) {
+      params.endTime = formatTimeForAPI(endTimeFilter.value)
+    }
 
-  const csv = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n')
+    const response = await http.get(`${API_BASE_URL}/history`, { params })
+    const exportData = response.data.records || alertData.value.records
 
-  // 下载CSV文件
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
-  link.setAttribute('href', url)
-  link.setAttribute('download', `alerts_${new Date().getTime()}.csv`)
-  link.style.visibility = 'hidden'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+    // 构建CSV数据（添加BOM以支持中文）
+    const BOM = '\uFEFF'
+    const headers = ['告警ID', '告警名称', '级别', '摘要', '描述', '触发时间', '恢复时间', '状态', '持续时间']
+    const rows = exportData.map(alert => [
+      alert.id,
+      alert.alertName,
+      getSeverityLabel(alert.severity),
+      (alert.summary || '').replace(/"/g, '""'), // 处理CSV特殊字符
+      (alert.description || '').replace(/"/g, '""'),
+      formatTime(alert.startsAt),
+      alert.endsAt ? formatTime(alert.endsAt) : '-',
+      getStatusLabel(alert.status, alert.endsAt),
+      alert.endsAt ? calculateDuration(alert.startsAt, alert.endsAt) : '-'
+    ])
+
+    const csv = BOM + [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    // 下载CSV文件
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `alerts_export_${timestamp}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url) // 释放内存
+  } catch (error) {
+    console.error('导出失败:', error)
+    alert('导出失败，请稍后重试')
+  }
 }
+
+// Watch - 监听筛选条件变化
+// 搜索框防抖处理
+watch(searchQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    loadAlerts()
+  }, 300)
+})
+
+// 下拉筛选立即触发
+watch([severityFilter, statusFilter, startTimeFilter, endTimeFilter], () => {
+  currentPage.value = 1
+  loadAlerts()
+})
+
+// 分页变化
+watch(currentPage, () => {
+  loadAlerts()
+})
+
+// 每页条数变化
+watch(pageSize, () => {
+  currentPage.value = 1
+  loadAlerts()
+})
 
 // Lifecycle
 onMounted(() => {
   loadAlerts()
 })
 
-// Watch for pagination changes
-import { watch } from 'vue'
-watch(currentPage, () => {
-  loadAlerts()
+// 清理定时器
+onUnmounted(() => {
+  clearTimeout(searchTimer)
 })
 </script>
 
@@ -526,6 +830,12 @@ watch(currentPage, () => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* 低饱和告警语义色，避免花绿/亮青 */
+  --sev-critical: #8b3f48;
+  --sev-warning: #735c2e;
+  --sev-info: #4a5f73;
+  --sev-resolved: #3f5a50;
+  --alert-focus: #4a5f78;
 }
 
 /* Alert Overview */
@@ -558,21 +868,28 @@ watch(currentPage, () => {
 }
 
 .alert-stat-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--card-color);
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
-.alert-stat-card.critical { --card-color: var(--accent-red); }
-.alert-stat-card.warning { --card-color: var(--accent-yellow); }
-.alert-stat-card.info { --card-color: var(--accent-cyan); }
-.alert-stat-card.resolved { --card-color: var(--accent-green); }
+.alert-stat-card.active {
+  border-color: var(--card-color);
+  box-shadow: 0 0 0 1px var(--card-color);
+}
+
+.alert-stat-card.critical { --card-color: var(--sev-critical); }
+.alert-stat-card.warning { --card-color: var(--sev-warning); }
+.alert-stat-card.info { --card-color: var(--sev-info); }
+.alert-stat-card.resolved { --card-color: var(--sev-resolved); }
 
 .alert-stat-icon {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 16px;
-  background: linear-gradient(135deg, var(--card-color), transparent);
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -580,16 +897,18 @@ watch(currentPage, () => {
 }
 
 .alert-stat-value {
-  font-size: 36px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--card-color);
+  font-size: 30px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .alert-stat-label {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 /* Toolbar */
@@ -605,6 +924,7 @@ watch(currentPage, () => {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .search-box {
@@ -633,7 +953,7 @@ watch(currentPage, () => {
 
 .search-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
+  border-color: var(--alert-focus);
 }
 
 .filter-select {
@@ -645,12 +965,12 @@ watch(currentPage, () => {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--accent-cyan);
+  border-color: var(--alert-focus);
 }
 
 .filter-select option {
@@ -660,6 +980,66 @@ watch(currentPage, () => {
 .action-group {
   display: flex;
   gap: 12px;
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--brand-600);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 8px 12px;
+}
+
+.btn-text:hover {
+  color: var(--text-primary);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinning animation for refresh button */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Alert List */
@@ -672,7 +1052,7 @@ watch(currentPage, () => {
 
 .alert-list-header {
   display: grid;
-  grid-template-columns: 80px 1fr 150px 150px 150px 100px 100px;
+  grid-template-columns: 80px 1fr 150px 150px 150px 100px 80px;
   gap: 16px;
   padding: 16px 24px;
   background: var(--bg-tertiary);
@@ -691,7 +1071,7 @@ watch(currentPage, () => {
 
 .alert-item {
   display: grid;
-  grid-template-columns: 80px 1fr 150px 150px 150px 100px 100px;
+  grid-template-columns: 80px 1fr 150px 150px 150px 100px 80px;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
@@ -704,50 +1084,55 @@ watch(currentPage, () => {
 }
 
 .alert-item:hover {
-  background: rgba(6, 182, 212, 0.04);
+  background: var(--bg-subtle);
 }
 
 /* Badges */
 .severity-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .severity-badge.critical {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
+  background: #e8d4d6;
+  color: #5c2a30;
+  border: 1px solid #d4bcbf;
 }
 
 .severity-badge.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
+  background: #e8e2d4;
+  color: #5c4a26;
+  border: 1px solid #d4cdb8;
 }
 
 .severity-badge.info {
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
+  background: #dbe3e8;
+  color: #3d4f5f;
+  border: 1px solid #c5d0d8;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
 }
 
 .status-badge.active {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
+  background: #e5dcd8;
+  color: #5c3d38;
+  border: 1px solid #d0c4bf;
 }
 
 .status-badge.resolved {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
+  background: #dde5e1;
+  color: #3d5248;
+  border: 1px solid #c5d1cc;
 }
 
 .name-tag {
@@ -813,8 +1198,13 @@ watch(currentPage, () => {
 }
 
 .icon-btn:hover {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.icon-btn.aiops-btn:hover {
+  background: #d8e0eb;
+  color: var(--brand-800);
 }
 
 /* Empty State */
@@ -841,13 +1231,9 @@ watch(currentPage, () => {
   height: 40px;
   margin: 0 auto 16px;
   border: 3px solid var(--border-color);
-  border-top-color: var(--accent-cyan);
+  border-top-color: var(--brand-600);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* Pagination */
@@ -857,6 +1243,8 @@ watch(currentPage, () => {
   align-items: center;
   padding: 16px 24px;
   border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .pagination-info {
@@ -868,6 +1256,16 @@ watch(currentPage, () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.page-size-select {
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .page-btn {
@@ -885,8 +1283,9 @@ watch(currentPage, () => {
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-subtle);
 }
 
 .page-btn:disabled {
@@ -900,7 +1299,7 @@ watch(currentPage, () => {
 }
 
 .page-num {
-  width: 32px;
+  min-width: 32px;
   height: 32px;
   border: none;
   background: transparent;
@@ -909,15 +1308,21 @@ watch(currentPage, () => {
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s ease;
+  padding: 0 8px;
 }
 
-.page-num:hover {
+.page-num:hover:not(.ellipsis) {
   background: var(--bg-tertiary);
 }
 
 .page-num.active {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--brand-700);
+  color: #fff;
+}
+
+.page-num.ellipsis {
+  cursor: default;
+  color: var(--text-muted);
 }
 
 /* Modal */
@@ -1000,11 +1405,13 @@ watch(currentPage, () => {
 .detail-value {
   font-size: 14px;
   color: var(--text-primary);
+  max-width: 400px;
+  word-break: break-word;
 }
 
 .detail-value.mono {
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-secondary);
 }
 
 .detail-section {
@@ -1024,6 +1431,8 @@ watch(currentPage, () => {
   background: var(--bg-tertiary);
   border-radius: 10px;
   margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .tags-container {
@@ -1034,7 +1443,7 @@ watch(currentPage, () => {
 
 .label-tag {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 8px 12px;
   background: var(--bg-tertiary);
   border-radius: 6px;
@@ -1043,9 +1452,10 @@ watch(currentPage, () => {
 }
 
 .tag-key {
-  color: var(--accent-cyan);
-  font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  flex-shrink: 0;
 }
 
 .tag-value {
@@ -1062,47 +1472,6 @@ watch(currentPage, () => {
   border-top: 1px solid var(--border-color);
 }
 
-/* Buttons */
-.btn {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btn-primary {
-  background: var(--accent-cyan);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #06b6d4;
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* Responsive */
 @media (max-width: 1400px) {
   .alert-overview {
@@ -1113,10 +1482,24 @@ watch(currentPage, () => {
 @media (max-width: 1200px) {
   .alert-list-header,
   .alert-item {
-    grid-template-columns: 70px 1fr 120px 80px;
+    grid-template-columns: 70px 1fr 120px 100px 80px;
   }
-  .name-cell,
-  .actions-cell {
+  .header-cell.time:nth-of-type(5),
+  .time-cell:nth-of-type(5) {
+    display: none;
+  }
+  .name-cell {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .alert-list-header,
+  .alert-item {
+    grid-template-columns: 70px 1fr 100px 80px;
+  }
+  .header-cell.time:nth-of-type(4),
+  .time-cell:nth-of-type(4) {
     display: none;
   }
 }
@@ -1135,17 +1518,48 @@ watch(currentPage, () => {
     width: 100%;
   }
 
+  .filter-select {
+    width: 100%;
+  }
+
   .action-group {
     flex-direction: column;
   }
 
   .alert-overview {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .detail-modal {
     width: 95%;
     max-width: 600px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .alert-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-list-header,
+  .alert-item {
+    grid-template-columns: 60px 1fr 80px;
+  }
+
+  .header-cell.status,
+  .status-cell,
+  .actions-cell {
+    display: none;
   }
 }
 </style>

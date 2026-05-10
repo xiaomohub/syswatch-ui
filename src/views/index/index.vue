@@ -13,14 +13,12 @@
           </div>
           <div>
             <div class="logo-text">SysWatch</div>
-            <div class="logo-subtitle">Monitor System</div>
+            <div class="logo-subtitle">智能观测平台</div>
           </div>
         </div>
       </div>
 
-      <nav class="nav-section">
-        <div class="nav-label">主要功能</div>
-        
+      <nav class="nav-section" aria-label="功能导航">
         <router-link to="/dashboard" class="nav-item" active-class="active">
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -33,7 +31,12 @@
           <span class="nav-text">监控面板</span>
         </router-link>
 
-        <router-link to="/alert" class="nav-item" active-class="active">
+        <router-link
+          v-if="FEATURE_ALERT_STATISTICS && isOps"
+          to="/alert"
+          class="nav-item"
+          active-class="active"
+        >
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -43,80 +46,267 @@
           <span class="nav-text">告警统计</span>
         </router-link>
 
-        <router-link to="/alertconfig" class="nav-item" active-class="active">
+        <router-link v-if="isOps" to="/datasource" class="nav-item" active-class="active">
           <span class="nav-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 1v6m0 6v10"/>
-              <path d="M21 12h-6m-6 0H1"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+              <path d="M22 12A10 10 0 0 0 12 2v10z"/>
             </svg>
           </span>
-          <span class="nav-text">告警配置</span>
+          <span class="nav-text">数据源</span>
         </router-link>
 
-        <router-link to="/logquery" class="nav-item" active-class="active">
-          <span class="nav-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </span>
-          <span class="nav-text">日志查询</span>
-        </router-link>
-      </nav>
-        <!-- 添加新的导航分组标签 -->
-        <div class="nav-label">告警管理</div>
-
-        <!-- 告警静默 -->
-        <router-link to="/alertsilence" class="nav-item" active-class="active">
-          <span class="nav-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          </span>
-          <span class="nav-text">告警静默</span>
-        </router-link>
-
-
-
-
-      <div class="user-section">
-        <div class="user-card">
-          <div class="user-avatar">{{ userInitials }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ userName }}</div>
-            <div class="user-role">{{ userRole }}</div>
-          </div>
-          <button class="logout-btn" @click="showLogoutModal = true" title="退出登录">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
+        <div v-if="isOps" class="nav-collapse" aria-label="告警管理">
+          <button
+            type="button"
+            class="nav-collapse-trigger"
+            :class="{ 'is-active-parent': isAlertMgmtSection }"
+            :aria-expanded="alertNavExpanded"
+            @click="alertNavExpanded = !alertNavExpanded"
+          >
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M12 8v4M12 16h.01"/>
+              </svg>
+            </span>
+            <span class="nav-text">告警管理</span>
+            <span class="nav-collapse-chevron" :class="{ expanded: alertNavExpanded }" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </span>
           </button>
+          <Transition name="nav-collapse-h">
+            <div v-show="alertNavExpanded" class="nav-collapse-body">
+              <router-link
+                to="/alert-mgmt/rules"
+                class="nav-item nav-item-child"
+                :class="{ active: isAlertRulesNavRoute }"
+              >
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>
+                  </svg>
+                </span>
+                <span class="nav-text">告警规则</span>
+              </router-link>
+            </div>
+          </Transition>
         </div>
-      </div>
+
+        <router-link
+          v-if="isOps"
+          to="/fault-center"
+          class="nav-item"
+          :class="{ active: route.path.startsWith('/fault-center') }"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10"/>
+              <path d="M12 8v5"/>
+              <path d="M12 16h.01"/>
+              <path d="M22 12a10 10 0 0 0-10-10"/>
+            </svg>
+          </span>
+          <span class="nav-text">故障中心</span>
+        </router-link>
+
+        <div v-if="canNoticeObjects" class="nav-collapse" aria-label="通知管理">
+          <button
+            type="button"
+            class="nav-collapse-trigger"
+            :class="{ 'is-active-parent': isNoticeMgmtRoute }"
+            :aria-expanded="noticeNavExpanded"
+            @click="noticeNavExpanded = !noticeNavExpanded"
+          >
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </span>
+            <span class="nav-text">通知管理</span>
+            <span class="nav-collapse-chevron" :class="{ expanded: noticeNavExpanded }" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </span>
+          </button>
+          <Transition name="nav-collapse-h">
+            <div v-show="noticeNavExpanded" class="nav-collapse-body">
+              <router-link
+                to="/noticeObjects"
+                class="nav-item nav-item-child"
+                active-class="active"
+              >
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                </span>
+                <span class="nav-text">通知对象</span>
+              </router-link>
+              <router-link
+                to="/noticeTemplate"
+                class="nav-item nav-item-child"
+                active-class="active"
+              >
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                  </svg>
+                </span>
+                <span class="nav-text">通知模版</span>
+              </router-link>
+            </div>
+          </Transition>
+        </div>
+
+        <router-link
+          v-if="isOps"
+          to="/dutyManage"
+          class="nav-item"
+          :class="{ active: route.path.startsWith('/dutyManage') }"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+          <span class="nav-text">值班中心</span>
+        </router-link>
+
+        <div v-if="isOps" class="nav-collapse" aria-label="分析诊断">
+          <button
+            type="button"
+            class="nav-collapse-trigger"
+            :class="{ 'is-active-parent': isAnalysisDiagSection }"
+            :aria-expanded="analysisDiagNavExpanded"
+            @click="analysisDiagNavExpanded = !analysisDiagNavExpanded"
+          >
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
+                <path d="M9 18h6M10 22h4"/>
+                <path d="M8 14h8"/>
+              </svg>
+            </span>
+            <span class="nav-text">分析诊断</span>
+            <span class="nav-collapse-chevron" :class="{ expanded: analysisDiagNavExpanded }" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </span>
+          </button>
+          <Transition name="nav-collapse-h">
+            <div v-show="analysisDiagNavExpanded" class="nav-collapse-body">
+              <router-link
+                to="/aiops-rca"
+                class="nav-item nav-item-child"
+                active-class="active"
+              >
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4M12 8h.01"/>
+                  </svg>
+                </span>
+                <span class="nav-text">智能诊断</span>
+              </router-link>
+            </div>
+          </Transition>
+        </div>
+
+        <div v-if="isRoot" class="nav-collapse" aria-label="人员管理">
+          <button
+            type="button"
+            class="nav-collapse-trigger"
+            :class="{ 'is-active-parent': isPersonnelMgmtRoute }"
+            :aria-expanded="personnelNavExpanded"
+            @click="personnelNavExpanded = !personnelNavExpanded"
+          >
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="nav-text">人员管理</span>
+            <span class="nav-collapse-chevron" :class="{ expanded: personnelNavExpanded }" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </span>
+          </button>
+          <Transition name="nav-collapse-h">
+            <div v-show="personnelNavExpanded" class="nav-collapse-body">
+              <router-link to="/roleadmin/users" class="nav-item nav-item-child" active-class="active">
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </span>
+                <span class="nav-text">用户列表</span>
+              </router-link>
+              <router-link to="/roleadmin/roles" class="nav-item nav-item-child" active-class="active">
+                <span class="nav-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M12 8v4M12 16h.01"/>
+                  </svg>
+                </span>
+                <span class="nav-text">角色与权限</span>
+              </router-link>
+            </div>
+          </Transition>
+        </div>
+      </nav>
+
+      <footer class="sidebar-footer" aria-label="页面标题与用户">
+        <h1 class="page-title sidebar-footer-title">{{ pageTitle }}</h1>
+        <div class="sidebar-footer-col">
+          <div class="header-user sidebar-footer-user" role="group" aria-label="当前用户">
+            <router-link
+              v-if="isRoot"
+              to="/roleadmin/users"
+              class="user-avatar user-avatar-link"
+              active-class="user-avatar-active"
+              title="用户列表"
+            >
+              {{ userInitials }}
+            </router-link>
+            <div v-else class="user-avatar" aria-hidden="true">{{ userInitials }}</div>
+            <div class="user-meta">
+              <div class="user-name">{{ userName }}</div>
+              <div class="user-role">{{ userRole }}</div>
+            </div>
+            <button type="button" class="logout-btn" @click="showLogoutModal = true" title="退出登录">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </footer>
     </aside>
 
     <!-- Main Content -->
     <main class="main-content">
-      <header class="header">
-        <h1 class="page-title">{{ pageTitle }}</h1>
-        <div class="header-actions">
-          <div class="status-indicator">
-            <span class="status-dot"></span>
-            <span>系统运行正常</span>
-          </div>
-          <div class="time-display">{{ currentTime }}</div>
-        </div>
-      </header>
-
       <div class="page-content">
-        <router-view />
+        <ViewErrorBoundary>
+          <router-view />
+        </ViewErrorBoundary>
       </div>
     </main>
 
@@ -144,95 +334,133 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/store/user'
+import { FEATURE_ALERT_STATISTICS, ACCESS_LEVEL } from '@/constants/rbac'
+import ViewErrorBoundary from '@/components/ViewErrorBoundary.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const showLogoutModal = ref(false)
-const currentTime = ref('')
 
-// User info
-const userName = ref('Admin')
-const userRole = ref('系统管理员')
+const userName = computed(
+  () => userStore.profile.displayName || userStore.profile.username || '用户'
+)
+const userRole = computed(() => userStore.roleLabel)
 const userInitials = computed(() => userName.value.slice(0, 2).toUpperCase())
+/** 运维档：admin + root，可见除人员管理外的功能菜单 */
+const isOps = computed(() => userStore.accessLevel >= ACCESS_LEVEL.ADMIN)
+/** 平台管理：仅 root，人员与角色 */
+const isRoot = computed(() => userStore.accessLevel >= ACCESS_LEVEL.ROOT)
+
+const canNoticeObjects = computed(() => isOps.value)
+
+const isNoticeMgmtRoute = computed(
+  () =>
+    route.path === '/noticeObjects' ||
+    route.path.startsWith('/noticeObjects/') ||
+    route.path === '/noticeTemplate' ||
+    route.path.startsWith('/noticeTemplate/')
+)
+const noticeNavExpanded = ref(false)
+
+watch(
+  isNoticeMgmtRoute,
+  (on) => {
+    if (on) noticeNavExpanded.value = true
+  },
+  { immediate: true }
+)
+
+const isAlertMgmtSection = computed(() => route.path.startsWith('/alert-mgmt'))
+/** 侧栏「告警规则」：规则组 + 规则（分栏），含新建/导入/编辑子路由 */
+const isAlertRulesNavRoute = computed(() => route.path.startsWith('/alert-mgmt/rules'))
+const alertNavExpanded = ref(false)
+
+watch(
+  isAlertMgmtSection,
+  (on) => {
+    if (on) alertNavExpanded.value = true
+  },
+  { immediate: true }
+)
+
+const isPersonnelMgmtRoute = computed(() => route.path.startsWith('/roleadmin'))
+const personnelNavExpanded = ref(false)
+
+watch(
+  isPersonnelMgmtRoute,
+  (on) => {
+    if (on) personnelNavExpanded.value = true
+  },
+  { immediate: true }
+)
+
+const isAnalysisDiagSection = computed(() => route.path.startsWith('/aiops-rca'))
+const analysisDiagNavExpanded = ref(false)
+
+watch(
+  isAnalysisDiagSection,
+  (on) => {
+    if (on) analysisDiagNavExpanded.value = true
+  },
+  { immediate: true }
+)
 
 // Page title
 const pageTitle = computed(() => {
+  const fromRouteMeta = [...route.matched].reverse().find((r) => r.meta?.title)?.meta?.title
+  if (fromRouteMeta) return fromRouteMeta
   const titles = {
     '/dashboard': '监控面板',
     '/alert': '告警统计',
-    '/alertsilence': '告警静默',
+    '/fault-center': '故障中心',
+    '/dutyManage': '值班中心',
+    '/aiops-rca': '智能诊断',
     '/alertinhibit': '告警抑制',
-    '/alertconfig': '告警配置',
-    '/logquery': '日志查询'
+    '/roleadmin/users': '用户列表',
+    '/roleadmin/roles': '角色与权限',
+    '/forbidden': '无权限',
+    '/noticeTemplate': '通知模版'
   }
   return titles[route.path] || '监控面板'
 })
 
-// Time update
-const updateTime = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-
 // Logout
 const handleLogout = () => {
   showLogoutModal.value = false
-  // 清除登录状态
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  userStore.logout()
   router.push('/login')
 }
 
-let timeInterval
-onMounted(() => {
-  updateTime()
-  timeInterval = setInterval(updateTime, 1000)
-})
-
-onUnmounted(() => {
-  clearInterval(timeInterval)
-})
 </script>
 
 <style scoped>
 .app-container {
   min-height: 100vh;
-  background: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 20% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
-    linear-gradient(rgba(30, 41, 59, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 41, 59, 0.3) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background: var(--bg-page);
 }
 
-/* Sidebar */
 .sidebar {
   position: fixed;
   left: 0;
   top: 0;
   width: var(--sidebar-width);
   height: 100vh;
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  border-right: 1px solid var(--border-color);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   z-index: 100;
 }
 
 .logo-section {
-  padding: 24px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .logo {
@@ -242,88 +470,114 @@ onUnmounted(() => {
 }
 
 .logo-icon {
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  background: var(--brand-600);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: 0 4px 20px var(--accent-cyan-glow);
+  color: #fff;
+  flex-shrink: 0;
 }
 
 .logo-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
-  font-weight: 600;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .logo-subtitle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-weight: 400;
+  margin-top: 2px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nav-section {
   flex: 1;
-  padding: 20px 12px;
+  min-height: 0;
+  padding: 16px 12px;
   overflow-y: auto;
 }
 
-.nav-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 12px 16px 8px;
-  font-weight: 500;
+.sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 12px 14px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-sidebar);
+  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.sidebar-footer-title {
+  margin: 0;
+  line-height: 1.35;
+  font-size: 14px;
+  width: 100%;
+  word-break: break-word;
+}
+
+.sidebar-footer-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+}
+
+.sidebar-footer-user {
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-default);
+  width: 100%;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  margin: 4px 0;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 2px 0;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   position: relative;
-  overflow: hidden;
   text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-item::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  height: 100%;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  height: 20px;
   width: 3px;
-  background: var(--accent-cyan);
-  transform: scaleY(0);
-  transition: transform 0.25s ease;
+  background: var(--brand-600);
+  border-radius: 0 2px 2px 0;
+  transition: transform 0.15s ease;
 }
 
 .nav-item:hover {
-  background: rgba(6, 182, 212, 0.08);
+  background: var(--bg-subtle);
   color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: rgba(6, 182, 212, 0.12);
-  color: var(--accent-cyan);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-weight: 500;
 }
 
 .nav-item.active::before {
-  transform: scaleY(1);
+  transform: translateY(-50%) scaleY(1);
 }
 
 .nav-icon {
@@ -332,217 +586,256 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nav-text {
   font-size: 14px;
+}
+
+.nav-collapse {
+  margin: 2px 0;
+}
+.nav-collapse-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+.nav-collapse-trigger:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+.nav-collapse-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--brand-600);
+}
+.nav-collapse-trigger.is-active-parent {
+  color: var(--brand-700);
   font-weight: 500;
+  background: var(--brand-50);
+}
+.nav-collapse-chevron {
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.nav-collapse-chevron.expanded {
+  transform: rotate(90deg);
+}
+.nav-collapse-body {
+  overflow: hidden;
+}
+.nav-item.nav-item-child {
+  padding-left: 46px;
+}
+.nav-collapse-h-enter-active,
+.nav-collapse-h-leave-active {
+  overflow: hidden;
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+.nav-collapse-h-enter-from,
+.nav-collapse-h-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+.nav-collapse-h-enter-to,
+.nav-collapse-h-leave-from {
+  max-height: 360px;
+  opacity: 1;
 }
 
 .nav-badge {
   margin-left: auto;
-  background: var(--accent-red);
-  color: white;
+  background: var(--danger-600);
+  color: #fff;
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 999px;
   font-weight: 600;
-}
-
-.user-section {
-  padding: 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-.user-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  background: var(--brand-600);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 14px;
-  color: white;
+  font-size: 12px;
+  color: #fff;
+  flex-shrink: 0;
 }
 
-.user-info {
-  flex: 1;
+a.user-avatar-link {
+  text-decoration: none;
+  color: #fff;
+  border: 2px solid transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+a.user-avatar-link:hover {
+  background: var(--brand-700);
+}
+
+a.user-avatar-link:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, #fff 70%, var(--brand-600));
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--brand-600);
+}
+
+a.user-avatar-link.user-avatar-active {
+  background: var(--brand-800);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-600) 35%, transparent);
+}
+
+.user-meta {
+  min-width: 0;
+  max-width: 140px;
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .user-role {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .logout-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--accent-red);
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .logout-btn:hover {
-  background: var(--accent-red);
-  color: white;
+  background: var(--danger-50);
+  border-color: #fecaca;
+  color: var(--danger-600);
 }
 
-/* Main Content */
 .main-content {
   margin-left: var(--sidebar-width);
   min-height: 100vh;
-}
-
-.header {
-  height: var(--header-height);
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  background: var(--bg-page);
 }
 
 .page-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
-.header-actions {
+.header-user {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--accent-green);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--accent-green);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.time-display {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  color: var(--text-secondary);
+  gap: 10px;
 }
 
 .page-content {
-  padding: 32px;
+  padding: 24px 28px 32px;
+  max-width: 1600px;
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: fadeIn 0.15s ease;
 }
 
 .modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 32px;
-  width: 400px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.2s ease;
 }
 
 .modal-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px;
-  background: rgba(239, 68, 68, 0.15);
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: var(--danger-50);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-red);
+  color: var(--danger-600);
 }
 
 .modal-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .modal-text {
   color: var(--text-secondary);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   line-height: 1.6;
+  font-size: 14px;
 }
 
 .modal-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .modal-actions .btn {
   flex: 1;
   justify-content: center;
-  padding: 12px 20px;
+  padding: 10px 16px;
 }
 </style>

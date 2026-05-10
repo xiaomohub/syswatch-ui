@@ -1,5 +1,5 @@
-/* Global Styles for SysWatch */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+/* SysWatch — 企业级全局设计系统 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 * {
   margin: 0;
@@ -8,144 +8,185 @@
 }
 
 :root {
-  --bg-primary: #0a0e17;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1a2332;
-  --bg-card: #151d2c;
-  --border-color: #1e293b;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
+  /* 品牌与语义色 */
+  --brand-50: #dbe4f0;
+  --brand-100: #c7d6eb;
+  --brand-600: #1d4ed8;
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+
+  --success-50: #d1fae5;
+  --success-600: #047857;
+  --success-700: #065f46;
+
+  --warning-50: #fef3c7;
+  --warning-600: #b45309;
+
+  --danger-50: #fee2e2;
+  --danger-600: #b91c1c;
+  --danger-700: #991b1b;
+
+  /* 表面与边框（整体降亮度，减少白底刺眼） */
+  --bg-page: #d5dae3;
+  --bg-surface: #e8ebf2;
+  --bg-subtle: #dde1ea;
+  --bg-sidebar: #dfe3ec;
+  --bg-elevated: #e8ebf2;
+
+  --border-default: #c5cbd6;
+  --border-strong: #aeb6c4;
+  --border-focus: var(--brand-600);
+
+  /* 文字：略柔化，避免在灰底上过硬 */
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
   --text-muted: #64748b;
-  --accent-cyan: #06b6d4;
-  --accent-cyan-glow: rgba(6, 182, 212, 0.3);
-  --accent-green: #10b981;
-  --accent-yellow: #f59e0b;
-  --accent-red: #ef4444;
-  --accent-purple: #8b5cf6;
-  --sidebar-width: 260px;
-  --header-height: 64px;
+  --text-placeholder: #94a3b8;
+
+  /* 布局 */
+  --sidebar-width: 248px;
+  --header-height: 56px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.09);
+  --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.11);
+
+  /* 兼容旧变量名（各业务页仍引用） */
+  --bg-primary: var(--bg-page);
+  --bg-secondary: var(--bg-sidebar);
+  --bg-tertiary: var(--bg-subtle);
+  --bg-card: var(--bg-surface);
+  --border-color: var(--border-default);
+  --accent-cyan: var(--brand-600);
+  --accent-cyan-glow: rgba(30, 64, 175, 0.14);
+  --accent-green: var(--success-600);
+  --accent-yellow: var(--warning-600);
+  --accent-red: var(--danger-600);
+  --accent-purple: #4338ca;
 }
 
 body {
-  font-family: 'Noto Sans SC', sans-serif;
-  background: var(--bg-primary);
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-page);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.5;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
+  background: #aeb6c4;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: #94a3b8;
 }
 
-/* Common Button Styles */
+/* 通用按钮 */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   font-family: inherit;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
-  color: white;
-  box-shadow: 0 4px 16px var(--accent-cyan-glow);
+  background: var(--brand-600);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px var(--accent-cyan-glow);
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-700);
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
+  background: var(--bg-surface);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
 }
 
-.btn-secondary:hover {
-  background: var(--border-color);
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
 }
 
 .btn-danger {
-  background: var(--accent-red);
-  color: white;
+  background: var(--danger-600);
+  color: #fff;
 }
 
-.btn-danger:hover {
-  background: #dc2626;
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-700);
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-/* Links */
 a {
-  color: var(--accent-cyan);
+  color: var(--brand-600);
   text-decoration: none;
 }
 
 a:hover {
+  color: var(--brand-700);
   text-decoration: underline;
 }
 
-/* Selection */
 ::selection {
-  background: var(--accent-cyan);
-  color: white;
+  background: var(--brand-100);
+  color: var(--text-primary);
 }
 
-/* Focus outline */
 :focus-visible {
-  outline: 2px solid var(--accent-cyan);
+  outline: 2px solid var(--brand-600);
   outline-offset: 2px;
 }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from { 
-    opacity: 0; 
-    transform: translateY(20px); 
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.55; }
 }
 
 @keyframes spin {
