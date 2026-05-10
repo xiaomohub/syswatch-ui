@@ -1,7 +1,10 @@
 <template>
   <div class="role-admin">
     <div class="toolbar">
-      <span class="hint">为角色勾选权限后保存。权限码需与后端、<code>src/constants/rbac.js</code> 一致。</span>
+      <span class="hint">
+        平台以 <code>root</code> / <code>admin</code> / <code>user</code> 三档角色为主；下方权限码仅在后端仍使用细粒度串时维护（见
+        <code>docs/rbac-role-model.md</code>）。
+      </span>
       <button class="btn" type="button" :disabled="loading" @click="loadAll">刷新</button>
     </div>
 
@@ -54,8 +57,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import http from '@/utils/http'
-import { PERM } from '@/constants/rbac'
+import {
+  fetchRoles,
+  fetchPermissionsCatalogOptional,
+  updateRolePermissions,
+  localPermissionCatalog
+} from '@/api/rbacAdmin'
 
 const loading = ref(false)
 const listError = ref('')
@@ -70,37 +77,16 @@ const editor = ref({
   error: ''
 })
 
-function localCatalog() {
-  return [
-    { code: PERM.MENU_DASHBOARD, name: '菜单-监控面板' },
-    { code: PERM.MENU_ALERT, name: '菜单-告警统计' },
-    { code: PERM.MENU_ALERT_CONFIG, name: '菜单-告警配置' },
-    { code: PERM.MENU_ALERT_SILENCE, name: '菜单-告警静默' },
-    { code: PERM.MENU_LOG_QUERY, name: '菜单-日志查询' },
-    { code: PERM.MENU_AIOPS_RCA, name: '菜单-智能诊断' },
-    { code: PERM.MONITOR_EMBED, name: '内嵌 Grafana' },
-    { code: PERM.MONITOR_GRAFANA_DIRECT, name: '直达 Grafana' },
-    { code: PERM.ADMIN_ROLE_MANAGE, name: '角色权限管理' }
-  ]
-}
-
 async function loadAll() {
   loading.value = true
   listError.value = ''
   try {
-    const [rRes, pRes] = await Promise.all([
-      http.get('/api/rbac/roles'),
-      http.get('/api/rbac/permissions').catch(() => ({ data: null }))
-    ])
-    roles.value = Array.isArray(rRes.data) ? rRes.data : rRes.data?.items || []
-    const remote = pRes.data
-    const list = Array.isArray(remote)
-      ? remote
-      : remote?.items || remote?.permissions || null
-    catalog.value = list && list.length ? list.map((x) => ({ code: x.code, name: x.name || x.code })) : localCatalog()
+    const [roleRows, remotePerms] = await Promise.all([fetchRoles(), fetchPermissionsCatalogOptional()])
+    roles.value = roleRows
+    catalog.value = remotePerms && remotePerms.length ? remotePerms : localPermissionCatalog()
   } catch (e) {
     roles.value = []
-    catalog.value = localCatalog()
+    catalog.value = localPermissionCatalog()
     listError.value =
       e.response?.status === 404
         ? '后端尚未实现 RBAC 接口。下方为前端权限字典预览。'
@@ -133,9 +119,7 @@ async function saveEditor() {
   editor.value.saving = true
   editor.value.error = ''
   try {
-    await http.put(`/api/rbac/roles/${r.id}/permissions`, {
-      permissionCodes: editor.value.selected
-    })
+    await updateRolePermissions(r.id, editor.value.selected)
     closeEditor()
     await loadAll()
   } catch (e) {

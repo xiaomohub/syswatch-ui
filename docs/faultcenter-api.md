@@ -13,7 +13,9 @@
 ## 前端封装
 
 - `src/api/faultcenter.js`：`faultCenterList` / `faultCenterSearch` / `faultCenterCreate` / `faultCenterUpdate` / `faultCenterDelete` / `faultCenterReset` / `faultCenterSlo`、`getDashboardInfo`、`unwrapW8t`
-- `src/views/faultcenter/FaultCenter.vue`：列表、新建/编辑、删除、重置、SLO、工作台总览弹窗
+- `src/views/faultcenter/FaultCenterList.vue`：列表、删除；**新建**为同页弹窗 `FaultCenterCreateModal.vue`
+- `src/views/faultcenter/FaultCenterDetailPage.vue` 及子页：详情、SLO、工作台等
+- 旧路径 `/fault-center/create` 会重定向到列表并带 `?openCreate=1`，用于自动打开创建弹窗（书签/外链兼容）
 
 ## 权限路径（后端角色表 `API` 字段需与完整 Path 一致）
 
@@ -34,6 +36,15 @@
 - 历史事件 `GET /api/w8t/event/hisEvent?...`
 - 规则列表前端按 `faultCenterId` 过滤（或扩展后端查询参数）
 
+### 活跃事件：认领 / 删除 / 评论（POST 与查询参数）
+
+- **WatchAlert（Go）** 常见 JSON：`faultCenterId`、`fingerprints`（数组）；评论另含 `fingerprint`、`content`。
+- **Java BFF** 若使用 snake_case 校验，会要求 **`fault_center_id`**、**`event_ids`**（与指纹同一语义）；不认 `faultCenterId` / `fingerprints` 时会出现「必填」类错误。
+- 本仓库 `src/api/w8tAlert.js` 对 `event/process`、`event/delete`、`event/addComment` 的 body **同时带上 camelCase 与 snake_case**；`curEvent` / `hisEvent` / `listComments` 的 query **同时带 `faultCenterId` 与 `fault_center_id`**（及评论侧的 `fingerprint` / `event_id`），以便 Go 与 Java 联调无需改前端调用处。
+
 完整字段与嵌套类型以你整理的 WatchAlert 文档为准。
 
 **告警管理（规则组 / 规则 / 事件 / 静默）后端实施路线与接口检查单**：[`alert-management-backend-plan.md`](./alert-management-backend-plan.md)。
+
+**Java（Spring Boot）对接 WatchAlert `/api/w8t`（事件/静默/故障中心契约、命名与双写说明）**：[`w8t-java-backend.md`](./w8t-java-backend.md)。  
+**仅活跃告警 — 评论 / 认领 / 删除**：[`event-actions-java-backend.md`](./event-actions-java-backend.md)。规则域详见 [`alert-rules-java-backend.md`](./alert-rules-java-backend.md)。

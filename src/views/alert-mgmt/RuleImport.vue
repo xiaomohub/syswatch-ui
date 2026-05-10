@@ -17,12 +17,15 @@
           <option v-for="g in ruleGroups" :key="g.id" :value="g.id">{{ g.name || g.id }}</option>
         </select>
       </label>
-      <label class="field"><span>故障中心 ID</span>
-        <input v-model="form.faultCenterId" class="am-input" type="text" required>
+      <label class="field"><span>故障中心</span>
+        <select v-model="form.faultCenterId" class="am-input" required>
+          <option value="" disabled>请选择</option>
+          <option v-for="c in fcStore.centers" :key="c.id" :value="c.id">{{ c.name || c.id }}</option>
+        </select>
       </label>
       <label class="field"><span>数据源类型</span>
         <select v-model="form.datasourceType" class="am-input">
-          <option value="Prometheus">Prometheus</option>
+          <option v-for="t in alertDatasourceTypes" :key="t" :value="t">{{ t }}</option>
         </select>
       </label>
       <label class="field"><span>数据源 ID 列表（逗号分隔）</span>
@@ -52,14 +55,16 @@ import { onMounted, ref, watch } from 'vue'
 import { normalizeListPayload } from '@/utils/w8tPage'
 import { ruleGroupList, ruleImport } from '@/api/w8tAlert'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
+import { ALERT_DATASOURCE_TYPES, DEFAULT_ALERT_DATASOURCE_TYPE } from '@/constants/alertDatasourceTypes'
 
 const fcStore = useFaultCenterContextStore()
+const alertDatasourceTypes = ALERT_DATASOURCE_TYPES
 
 const ruleGroups = ref([])
 const form = ref({
   ruleGroupId: '',
   faultCenterId: '',
-  datasourceType: 'Prometheus',
+  datasourceType: DEFAULT_ALERT_DATASOURCE_TYPE,
   datasourceIdListStr: '',
   importType: 0,
   rules: ''
@@ -90,7 +95,7 @@ async function doImport() {
   err.value = ''
   okMsg.value = ''
   if (!form.value.ruleGroupId || !form.value.faultCenterId || !form.value.rules?.trim()) {
-    err.value = '请填写规则组、故障中心与规则内容'
+    err.value = '请选择规则组、故障中心并填写规则内容'
     return
   }
   submitting.value = true
@@ -115,6 +120,7 @@ async function doImport() {
 }
 
 onMounted(async () => {
+  await fcStore.loadCenters()
   await loadGroups()
   if (fcStore.currentFaultCenterId) {
     form.value.faultCenterId = fcStore.currentFaultCenterId
@@ -123,9 +129,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.am-page { padding: 8px 0 32px; max-width: 720px; }
-.am-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.am-title { margin: 0; font-size: 20px; font-weight: 600; }
+.am-page {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 12px 40px;
+  box-sizing: border-box;
+}
+.am-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.am-title { margin: 0; font-size: 22px; font-weight: 600; }
 .am-btn {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 8px 14px;
@@ -142,16 +160,22 @@ onMounted(async () => {
 .hint { font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 16px; }
 .form-card {
   border: 1px solid var(--border-default);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 28px 32px 32px;
   background: #fff;
 }
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13px; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
 .am-input, .am-textarea {
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
 }
 .am-textarea.mono { font-family: ui-monospace, monospace; font-size: 12px; }

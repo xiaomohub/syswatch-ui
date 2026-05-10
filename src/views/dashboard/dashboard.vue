@@ -1,16 +1,16 @@
 <template>
   <div class="dashboard">
     <div class="dashboard-toolbar">
-      <div class="dashboard-hint">
+      <div v-if="upstreamError" class="dashboard-hint error">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="16" x2="12" y2="12"/>
           <line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
-        <span>Grafana 跳转与入口列表为前端静态配置（内网 Wireguard：<code>10.0.0.0/24</code>）。CPU/内存/网络卡片请求 <code>/api/dashboard/overview</code>，开发时经 Vite 代理到后端（默认 <code>localhost:8080</code>）；Prometheus/VM 查询根地址由后端配置，见仓库 <code>docs/dashboard-overview-backend.md</code>。</span>
+        <span>{{ upstreamError }}</span>
       </div>
       <div class="toolbar-actions">
-        <template v-if="canGrafana && grafanaHome">
+        <template v-if="grafanaHome">
           <a :href="grafanaHome" class="btn-link" target="_blank" rel="noopener noreferrer">打开 Grafana</a>
           <a
             v-if="grafanaExplore"
@@ -20,21 +20,6 @@
             rel="noopener noreferrer"
           >Explore</a>
         </template>
-        <button type="button" class="btn-refresh" :disabled="loading" @click="loadOverview">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            :class="{ spinning: loading }"
-          >
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          {{ loading ? '刷新中…' : '刷新' }}
-        </button>
       </div>
     </div>
 
@@ -51,11 +36,13 @@
       </div>
     </div>
 
-    <section class="monitors-section" v-if="monitors.length > 0">
+    <p v-if="overviewMessage" class="overview-message">{{ overviewMessage }}</p>
+
+    <section class="monitors-section" v-if="monitorEntries.length > 0">
       <h2 class="section-title">监控入口</h2>
-      <p class="section-desc">以下为内网 Grafana 监控大盘入口，点击在新标签页打开。</p>
+      <p class="section-desc">新标签页打开。</p>
       <ul class="monitor-list">
-        <li v-for="m in monitors" :key="m.id || m.url">
+        <li v-for="m in monitorEntries" :key="m.id || m.url">
           <button type="button" class="monitor-row" @click="openExternal(m.url)">
             <div class="monitor-main">
               <span class="monitor-title">{{ m.title || '未命名' }}</span>
@@ -70,42 +57,56 @@
       </ul>
     </section>
 
-    <section class="monitors-section empty" v-else-if="!loading">
-      <h2 class="section-title">监控入口</h2>
-      <p class="section-desc muted">当前无监控入口配置，请检查前端静态列表或网络。</p>
-    </section>
-
     <p v-if="asOfText" class="as-of">数据时间：{{ asOfText }}</p>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useUserStore } from '@/store/user'
-import { PERM } from '@/constants/rbac'
-import { fetchDashboardOverview, unwrapBody } from '@/api/dashboard'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { fetchDashboardOverview, unwrapOverviewPayload } from '@/api/dashboard'
 
-const userStore = useUserStore()
+const AUTOREFRESH_MS = 10_000
+
 const loading = ref(false)
+const upstreamError = ref('')
+const overviewMessage = ref('')
 const grafanaHome = ref('')
 const grafanaExplore = ref('')
-const monitors = ref([])
 const asOfText = ref('')
 
-const GRAFANA_ORIGIN = 'http://10.0.0.1:3000'
-const GRAFANA_BASE_URL = `${GRAFANA_ORIGIN}/`
+/** 监控入口：前端维护，不读接口 `monitors`（与大盘指标请求无关）。 */
+const DEFAULT_MONITOR_ENTRIES = [
+  {
+    id: 'mysql-monitor-cn-v1',
+    title: 'MySQL 监控',
+    description: 'Grafana 大盘',
+    url: 'http://10.0.0.1:3000/d/mysql-monitor-cn-v1',
+    badge: 'MySQL'
+  },
+  {
+    id: 'pgsql-monitor-cn-v1',
+    title: 'PostgreSQL 监控',
+    description: 'Grafana 大盘',
+    url: 'http://10.0.0.1:3000/d/pgsql-monitor-cn-v1/',
+    badge: 'PG'
+  },
+  {
+    id: 'kafka-monitor-cn-v1',
+    title: 'Kafka 监控',
+    description: 'Grafana 大盘',
+    url: 'http://10.0.0.1:3000/d/kafka-monitor-cn-v1/',
+    badge: 'Kafka'
+  },
+  {
+    id: 'cvm-monitor-cn-v1',
+    title: 'CVM 监控',
+    description: 'Grafana 大盘',
+    url: 'http://10.0.0.1:3000/d/cvm-monitor-cn-v1/',
+    badge: 'CVM'
+  }
+]
 
-/** 内网 Grafana 监控大盘 */
-const GRAFANA_DASHBOARDS = {
-  mysql: `${GRAFANA_ORIGIN}/d/mysql-monitor-cn-v1/`,
-  pgsql: `${GRAFANA_ORIGIN}/d/pgsql-monitor-cn-v1/`,
-  kafka: `${GRAFANA_ORIGIN}/d/kafka-monitor-cn-v1/`,
-  cvm: `${GRAFANA_ORIGIN}/d/cvm-monitor-cn-v1/`
-}
-
-const canGrafana = computed(
-  () => userStore.rbacLegacyMode || userStore.hasPermission(PERM.MONITOR_GRAFANA_DIRECT)
-)
+const monitorEntries = ref(DEFAULT_MONITOR_ENTRIES.map((x) => ({ ...x })))
 
 const statIcons = {
   cpu: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
@@ -114,12 +115,16 @@ const statIcons = {
   net: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
 }
 
-const stats = ref([
-  { key: 'cpu', label: 'CPU 使用率', value: '—', progress: 0, raw: null, color: 'cyan', icon: statIcons.cpu },
-  { key: 'mem', label: '内存使用率', value: '—', progress: 0, raw: null, color: 'green', icon: statIcons.mem },
-  { key: 'disk', label: '磁盘使用率', value: '—', progress: 0, raw: null, color: 'yellow', icon: statIcons.disk },
-  { key: 'net', label: '网络流量', value: '—', progress: 0, raw: null, color: 'purple', icon: statIcons.net }
-])
+function buildStatRows() {
+  return [
+    { key: 'cpu', label: 'CPU 使用率', value: '—', progress: 0, raw: null, color: 'cyan', icon: statIcons.cpu },
+    { key: 'mem', label: '内存使用率', value: '—', progress: 0, raw: null, color: 'green', icon: statIcons.mem },
+    { key: 'disk', label: '磁盘使用率', value: '—', progress: 0, raw: null, color: 'yellow', icon: statIcons.disk },
+    { key: 'net', label: '网络接收速率', value: '—', progress: 0, raw: null, color: 'purple', icon: statIcons.net }
+  ]
+}
+
+const stats = ref(buildStatRows())
 
 function formatBytes(bytes, decimals = 2) {
   if (bytes == null || Number.isNaN(bytes)) return '—'
@@ -137,6 +142,7 @@ function clampPct(x) {
 }
 
 function applyMetrics(m) {
+  overviewMessage.value = ''
   if (!m || typeof m !== 'object') return
 
   const cpu = clampPct(m.cpuPercent ?? m.cpu)
@@ -144,6 +150,10 @@ function applyMetrics(m) {
   const disk = clampPct(m.diskPercent ?? m.disk)
   const netBps = m.networkBps ?? m.networkBytesPerSec ?? m.network
   const netNum = netBps != null && !Number.isNaN(Number(netBps)) ? Number(netBps) : null
+
+  if (cpu == null && mem == null && disk == null && netNum == null && m.message != null && String(m.message).trim()) {
+    overviewMessage.value = String(m.message).trim()
+  }
 
   const rows = stats.value
   rows[0].raw = cpu
@@ -191,60 +201,66 @@ function openExternal(url) {
   }
 }
 
+function applyGrafanaFromOverview(data) {
+  grafanaHome.value = ''
+  grafanaExplore.value = ''
+  if (!data || typeof data !== 'object') return
+  const g = data.grafana
+  if (g && typeof g === 'object' && typeof g.homeUrl === 'string' && g.homeUrl.trim()) {
+    grafanaHome.value = g.homeUrl.trim()
+    grafanaExplore.value = typeof g.exploreUrl === 'string' && g.exploreUrl.trim() ? g.exploreUrl.trim() : ''
+  }
+}
+
+function overviewErrorMessage(err, status) {
+  const body = err?.response?.data
+  if (body && typeof body === 'object') {
+    if (typeof body.error === 'string' && body.error.trim()) return body.error.trim()
+    if (typeof body.message === 'string' && body.message.trim()) return body.message.trim()
+  }
+  if (status === 502) return '指标上游不可用（HTTP 502），请检查后端到 Prometheus / VM 的网络与配置。'
+  if (typeof err?.message === 'string' && err.message) return err.message
+  return '加载大盘数据失败，请稍后重试。'
+}
+
 async function loadOverview() {
+  if (loading.value) return
   loading.value = true
+  upstreamError.value = ''
+  overviewMessage.value = ''
   try {
-    grafanaHome.value = GRAFANA_BASE_URL
-    grafanaExplore.value = `${GRAFANA_ORIGIN}/explore`
-    monitors.value = [
-      {
-        id: 'mysql',
-        title: 'MySQL 监控大盘',
-        description: 'mysql-monitor-cn-v1',
-        url: GRAFANA_DASHBOARDS.mysql,
-        badge: 'Grafana'
-      },
-      {
-        id: 'pgsql',
-        title: 'PostgreSQL 监控大盘',
-        description: 'pgsql-monitor-cn-v1',
-        url: GRAFANA_DASHBOARDS.pgsql,
-        badge: 'Grafana'
-      },
-      {
-        id: 'kafka',
-        title: 'Kafka 监控大盘',
-        description: 'kafka-monitor-cn-v1',
-        url: GRAFANA_DASHBOARDS.kafka,
-        badge: 'Grafana'
-      },
-      {
-        id: 'cvm',
-        title: 'CVM 监控大盘',
-        description: 'cvm-monitor-cn-v1',
-        url: GRAFANA_DASHBOARDS.cvm,
-        badge: 'Grafana'
-      }
-    ]
-    asOfText.value = ''
-    try {
-      const res = await fetchDashboardOverview()
-      applyMetrics(unwrapBody(res))
-    } catch {
-      /* 指标接口未就绪或非 POST 契约时保留占位 */
-    }
-  } catch {
+    const res = await fetchDashboardOverview()
+    const data = unwrapOverviewPayload(res)
+    stats.value = buildStatRows()
+    applyMetrics(data || {})
+    applyGrafanaFromOverview(data || {})
+  } catch (e) {
+    const status = e?.response?.status
+    upstreamError.value = overviewErrorMessage(e, status)
+    stats.value = buildStatRows()
     grafanaHome.value = ''
     grafanaExplore.value = ''
-    monitors.value = []
     asOfText.value = ''
+    overviewMessage.value = ''
   } finally {
     loading.value = false
   }
 }
 
+let refreshTimer = null
+
 onMounted(() => {
   loadOverview()
+  refreshTimer = window.setInterval(() => {
+    loadOverview()
+  }, AUTOREFRESH_MS)
+})
+
+onUnmounted(() => {
+  if (refreshTimer != null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 </script>
 
@@ -284,6 +300,21 @@ onMounted(() => {
   color: var(--danger-700);
 }
 
+.dashboard-hint.error svg {
+  color: var(--danger-700);
+}
+
+.overview-message {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
 .dashboard-hint svg {
   flex-shrink: 0;
   margin-top: 2px;
@@ -300,6 +331,7 @@ onMounted(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 
 .btn-link {
@@ -330,41 +362,6 @@ onMounted(() => {
 .btn-link.secondary:hover {
   border-color: var(--border-strong);
   background: var(--bg-subtle);
-}
-
-.btn-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn-refresh:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-
-.btn-refresh:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.spinning {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .stats-grid {
@@ -470,10 +467,6 @@ onMounted(() => {
   box-shadow: var(--shadow-sm);
 }
 
-.monitors-section.empty {
-  padding-bottom: 20px;
-}
-
 .section-title {
   margin: 0 0 8px;
   font-size: 16px;
@@ -486,14 +479,6 @@ onMounted(() => {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-}
-
-.section-desc.muted {
-  color: var(--text-muted);
-}
-
-.section-desc code {
-  font-size: 12px;
 }
 
 .monitor-list {

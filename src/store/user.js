@@ -1,5 +1,10 @@
 import { defineStore } from 'pinia'
-import { LEGACY_FULL_PERMISSIONS } from '@/constants/rbac'
+import {
+  LEGACY_FULL_PERMISSIONS,
+  RBAC_RELAX_ALL,
+  ACCESS_LEVEL,
+  resolveAccessLevelFromRoles
+} from '@/constants/rbac'
 
 const LS_USER = 'syswatch_user'
 const LS_PERMS = 'syswatch_permissions'
@@ -58,8 +63,15 @@ export const useUserStore = defineStore('user', {
       return state.rbacLegacyMode ? '系统管理员' : '未分配角色'
     },
     hasPermission: (state) => (code) => {
+      if (RBAC_RELAX_ALL) return true
       if (state.rbacLegacyMode) return true
       return state.permissions.includes(code)
+    },
+    /** 三档角色：0 user / 1 admin / 2 root；联调全开与 legacy 视为 root */
+    accessLevel: (state) => {
+      if (RBAC_RELAX_ALL) return ACCESS_LEVEL.ROOT
+      if (state.rbacLegacyMode) return ACCESS_LEVEL.ROOT
+      return resolveAccessLevelFromRoles(state.profile.roles || [])
     }
   },
   actions: {

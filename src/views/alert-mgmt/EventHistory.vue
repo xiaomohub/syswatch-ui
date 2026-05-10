@@ -2,18 +2,19 @@
   <div class="am-page">
     <div class="am-head">
       <h2 class="am-title">历史告警</h2>
-      <button type="button" class="am-btn" :disabled="loading || !fcStore.currentFaultCenterId" @click="load">刷新</button>
+      <button type="button" class="am-btn" :disabled="loading || !effectiveFc" @click="load">刷新</button>
     </div>
 
-    <p v-if="!fcStore.currentFaultCenterId" class="am-warn">请先在顶部选择故障中心（本接口要求 faultCenterId）。</p>
+    <p v-if="!effectiveFc" class="am-warn">{{ embedHint }}</p>
 
     <div class="am-filters">
       <input v-model="query" class="am-input sm" placeholder="query" @keyup.enter="resetPage">
       <input v-model="ruleId" class="am-input sm" placeholder="ruleId">
       <input v-model="ruleName" class="am-input sm" placeholder="ruleName">
       <input v-model="fingerprint" class="am-input sm" placeholder="fingerprint">
-      <input v-model="datasourceType" class="am-input sm" placeholder="datasourceType">
+      <input v-model="datasourceType" class="am-input sm" placeholder="datasourceType（可选）">
       <input v-model="severity" class="am-input sm" placeholder="severity">
+      <input v-model="status" class="am-input sm" placeholder="status 如 Recovered">
       <label class="am-inline">开始 <input v-model="startLocal" type="datetime-local" class="am-input"></label>
       <label class="am-inline">结束 <input v-model="endLocal" type="datetime-local" class="am-input"></label>
       <select v-model="sortOrder" class="am-input sm">
@@ -38,20 +39,20 @@
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="5" class="am-empty">{{ fcStore.currentFaultCenterId ? '暂无历史记录' : '—' }}</td>
+            <td colspan="5" class="am-empty">{{ effectiveFc ? '暂无历史记录' : '—' }}</td>
           </tr>
           <tr v-for="(row, i) in rows" :key="row.fingerprint || row.id || i">
             <td class="mono">{{ row.fingerprint || '—' }}</td>
-            <td>{{ row.rule_name || row.ruleName || '—' }}</td>
+            <td>{{ pickHisEventRuleName(row) || '—' }}</td>
             <td>{{ row.severity || '—' }}</td>
-            <td>{{ row.datasourceType || '—' }}</td>
-            <td>{{ formatTs(row.first_trigger_time) }}</td>
+            <td>{{ pickHisEventDatasourceDisplay(row) || '—' }}</td>
+            <td>{{ formatEventTs(pickFirstTriggerTime(row)) }}</td>
           </tr>
         </tbody>
       </table>
 
-      <div v-if="total > size" class="am-pager">
-        <span class="muted">共 {{ total }} 条</span>
+      <div v-if="totalPages > 1" class="am-pager">
+        <span class="muted">共 {{ total }} 条，每页 {{ PAGE_SIZE }} 条</span>
         <button type="button" class="am-btn sm" :disabled="index <= 1" @click="goPage(index - 1)">上一页</button>
         <span>{{ index }} / {{ totalPages }}</span>
         <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
@@ -61,19 +62,38 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
+import {
+  formatEventTs,
+  pickFirstTriggerTime,
+  pickHisEventRuleName,
+  pickHisEventDatasourceDisplay
+} from '@/utils/w8tEventDisplay'
 import { hisEventList } from '@/api/w8tAlert'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
 
+const props = defineProps({
+  faultCenterId: { type: String, default: '' },
+  syncDetailRouteQuery: { type: Boolean, default: false }
+})
+
 const fcStore = useFaultCenterContextStore()
+const route = useRoute()
+const router = useRouter()
+
+const effectiveFc = computed(() => (props.faultCenterId || '').trim() || fcStore.currentFaultCenterId)
+const embedHint = computed(() =>
+  props.faultCenterId ? '缺少故障中心 ID。' : '请先在顶部选择故障中心（本接口要求 faultCenterId）。'
+)
 
 const loading = ref(false)
 const pageError = ref('')
 const rows = ref([])
 const total = ref(0)
 const index = ref(1)
-const size = ref(20)
+const PAGE_SIZE = 10
 
 const query = ref('')
 const ruleId = ref('')
@@ -81,11 +101,12 @@ const ruleName = ref('')
 const fingerprint = ref('')
 const datasourceType = ref('')
 const severity = ref('')
+const status = ref('')
 const startLocal = ref('')
 const endLocal = ref('')
 const sortOrder = ref('descend')
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 function toUnixSec(localStr) {
   if (!localStr) return undefined
@@ -95,35 +116,53 @@ function toUnixSec(localStr) {
   return Math.floor(t / 1000)
 }
 
-function formatTs(v) {
-  if (v == null || v === '') return '—'
-  const n = Number(v)
-  const ms = n < 1e12 ? n * 1000 : n
-  try {
-    return new Date(ms).toLocaleString('zh-CN')
-  } catch {
-    return String(v)
-  }
+function syncQueryToRoute() {
+  if (!props.syncDetailRouteQuery) return
+  const nextQ = query.value?.trim() || ''
+  const q = { ...route.query }
+  if (nextQ) q.query = nextQ
+  else delete q.query
+  router.replace({ path: route.path, query: q })
 }
 
 function resetPage() {
   index.value = 1
+  syncQueryToRoute()
   load()
 }
 
+function applyRouteQueryToLocal() {
+  if (!props.syncDetailRouteQuery) return
+  const raw = route.query.query
+  const s = raw == null ? '' : Array.isArray(raw) ? String(raw[0] ?? '') : String(raw)
+  if (s !== query.value) query.value = s
+}
+
+applyRouteQueryToLocal()
+
 watch(
-  () => fcStore.currentFaultCenterId,
+  () => effectiveFc.value,
   (id) => {
     if (id) resetPage()
     else {
       rows.value = []
       total.value = 0
     }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.query,
+  () => {
+    if (!props.syncDetailRouteQuery) return
+    applyRouteQueryToLocal()
+    if (effectiveFc.value) load()
   }
 )
 
 async function load() {
-  const fc = fcStore.currentFaultCenterId
+  const fc = effectiveFc.value
   if (!fc) return
   pageError.value = ''
   loading.value = true
@@ -138,17 +177,18 @@ async function load() {
       fingerprint: fingerprint.value?.trim() || undefined,
       datasourceType: datasourceType.value?.trim() || undefined,
       severity: severity.value?.trim() || undefined,
+      status: status.value?.trim() || undefined,
       startAt,
       endAt,
       sortOrder: sortOrder.value,
       index: index.value,
-      size: Math.max(1, size.value)
+      size: PAGE_SIZE
     })
     const n = normalizeListPayload(data)
     rows.value = n.list
     total.value = n.total
-    index.value = n.index
-    size.value = n.size
+    const tp = Math.max(1, Math.ceil((n.total || 0) / PAGE_SIZE))
+    index.value = Math.min(Math.max(1, Number(n.index) || index.value), tp)
   } catch (e) {
     rows.value = []
     pageError.value = e?.message || '加载失败'
@@ -158,13 +198,11 @@ async function load() {
 }
 
 function goPage(p) {
-  index.value = Math.max(1, Math.min(p, totalPages.value))
+  const tp = Math.max(1, Math.ceil(total.value / PAGE_SIZE))
+  index.value = Math.max(1, Math.min(p, tp))
   load()
 }
 
-onMounted(() => {
-  if (fcStore.currentFaultCenterId) load()
-})
 </script>
 
 <style scoped>

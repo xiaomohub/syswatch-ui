@@ -128,7 +128,7 @@ async function load() {
 
 function onDelete(row) {
   if (!confirm(`删除通知对象「${row.name}」？若已被规则绑定将失败。`)) return
-  noticeDelete(row.uuid)
+  noticeDelete({ uuid: row.uuid, name: row.name })
     .then(() => load())
     .catch((e) => {
       pageError.value = e instanceof Error ? e.message : '删除失败'

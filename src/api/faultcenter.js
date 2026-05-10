@@ -48,12 +48,12 @@ export function faultCenterUpdate(body) {
   })
 }
 
-export function faultCenterDelete(id) {
-  return http.post(
-    `${W8T_BASE}/faultCenter/faultCenterDelete`,
-    { id },
-    { headers: { 'Content-Type': 'application/json' } }
-  )
+/** @param {{ id: string, name?: string }} body */
+export function faultCenterDelete(body) {
+  const payload = typeof body === 'string' ? { id: body } : { ...body }
+  return http.post(`${W8T_BASE}/faultCenter/faultCenterDelete`, payload, {
+    headers: { 'Content-Type': 'application/json' }
+  })
 }
 
 export function faultCenterReset(body) {
@@ -62,7 +62,7 @@ export function faultCenterReset(body) {
   })
 }
 
-/** @param {{ id: string }} params */
+/** @param {{ id: string, tenantId?: string }} params */
 export function faultCenterSlo(params) {
   return http.get(`${W8T_BASE}/faultCenter/slo`, { params })
 }

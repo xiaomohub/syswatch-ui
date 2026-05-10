@@ -1,8 +1,21 @@
 <template>
   <div class="fc-page">
-    <div class="fc-page-head">
-      <h2>SLO 看板</h2>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+    <div class="fc-page-head fc-head-unified">
+      <div class="fc-head-start">
+        <button
+          type="button"
+          class="fc-back-dashboard"
+          aria-label="返回监控面板"
+          title="返回监控面板"
+          @click="goDashboard"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <h2>SLO 看板</h2>
+      </div>
+      <div class="fc-head-end">
         <button type="button" class="btn btn-secondary" :disabled="loading" @click="load">刷新</button>
         <button type="button" class="btn btn-secondary" @click="goList">返回列表</button>
       </div>
@@ -123,7 +136,8 @@ async function load() {
   loading.value = true
   sloSeries.value = { mtta: [], mttr: [] }
   try {
-    const res = await faultCenterSlo({ id })
+    const tid = localStorage.getItem('tenantId') || localStorage.getItem('TenantID') || undefined
+    const res = await faultCenterSlo({ id, ...(tid ? { tenantId: tid } : {}) })
     const data = unwrapW8t(res) || {}
     sloSeries.value = {
       mtta: Array.isArray(data.mtta) ? data.mtta : [],
@@ -138,6 +152,10 @@ async function load() {
 
 function goList() {
   router.push({ name: 'FaultCenterList' })
+}
+
+function goDashboard() {
+  router.push({ name: 'Dashboard' })
 }
 
 watch(

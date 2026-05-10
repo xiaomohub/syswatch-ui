@@ -1,17 +1,21 @@
 import { useUserStore } from '@/store/user'
+import { RBAC_RELAX_ALL, ACCESS_LEVEL } from '@/constants/rbac'
 import { NOTICE_API, noticeApiPathKey } from '@/constants/noticeApiPaths'
 
 /**
- * 通知对象按钮权限：匹配 JWT 中「METHOD + 空格 + 完整 path」。
- * 测试、统计与 Go 一致无 Permission，登录即可。
+ * 通知对象：运维档全放行；user 档仅列表/记录只读。
+ * legacy 模式仍按 JWT path 码。
  */
 export function useNoticePerm() {
   const userStore = useUserStore()
 
   /** @param {{ method: string, path: string }} op */
   function can(op) {
+    if (RBAC_RELAX_ALL) return true
     if (userStore.rbacLegacyMode) return true
-    return userStore.permissions.includes(noticeApiPathKey(op))
+    if (userStore.accessLevel >= ACCESS_LEVEL.ADMIN) return true
+    const readOps = [noticeApiPathKey(NOTICE_API.LIST), noticeApiPathKey(NOTICE_API.RECORD_LIST)]
+    return readOps.includes(noticeApiPathKey(op))
   }
 
   return {

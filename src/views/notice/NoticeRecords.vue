@@ -1,18 +1,30 @@
 <template>
-  <div class="am-page">
-    <div class="am-head">
+  <div class="am-page" :class="{ embedded }">
+    <div v-if="!embedded" class="am-head">
       <h2 class="am-title">通知记录</h2>
       <div class="am-actions">
         <button type="button" class="am-btn" :disabled="loading" @click="load">刷新</button>
       </div>
     </div>
+    <div v-else class="am-head am-head-compact">
+      <div class="am-actions">
+        <button type="button" class="am-btn sm" :disabled="loading" @click="load">刷新</button>
+      </div>
+    </div>
 
     <div class="am-filters">
-      <input v-model="f.eventId" class="am-input sm" placeholder="事件 ID" @keyup.enter="resetPage">
-      <input v-model="f.severity" class="am-input sm" placeholder="等级 severity" @keyup.enter="resetPage">
-      <input v-model="f.status" class="am-input sm" placeholder="状态 status" @keyup.enter="resetPage">
-      <input v-model="f.uuid" class="am-input sm" placeholder="通知对象 uuid" @keyup.enter="resetPage">
-      <input v-model="f.query" class="am-input sm" placeholder="关键词" @keyup.enter="resetPage">
+      <template v-if="!embedded">
+        <input v-model="f.eventId" class="am-input sm" placeholder="事件 ID" @keyup.enter="resetPage">
+        <input v-model="f.severity" class="am-input sm" placeholder="等级 severity" @keyup.enter="resetPage">
+        <input v-model="f.status" class="am-input sm" placeholder="状态 status" @keyup.enter="resetPage">
+        <input v-model="f.uuid" class="am-input sm" placeholder="通知对象 uuid" @keyup.enter="resetPage">
+        <input v-model="f.query" class="am-input sm" placeholder="关键词" @keyup.enter="resetPage">
+      </template>
+      <template v-else>
+        <input v-model="f.severity" class="am-input sm" placeholder="等级 severity" @keyup.enter="resetPage">
+        <input v-model="f.status" class="am-input sm" placeholder="状态 status" @keyup.enter="resetPage">
+        <input v-model="f.query" class="am-input sm" placeholder="关键词 query" @keyup.enter="resetPage">
+      </template>
       <button type="button" class="am-btn sm" @click="resetPage">查询</button>
       <button type="button" class="am-btn sm" @click="resetFilters">重置</button>
     </div>
@@ -42,9 +54,14 @@
             <td class="nw">{{ formatTime(row.createAt) }}</td>
             <td><code>{{ row.eventId }}</code></td>
             <td>{{ row.ruleName }}</td>
-            <td>{{ row.nType }}</td>
+            <td>
+              <NotificationTypeIcon v-if="embedded" :type="row.nType" />
+              <template v-else>{{ row.nType }}</template>
+            </td>
             <td><code>{{ row.nObj }}</code></td>
-            <td>{{ row.severity }}</td>
+            <td>
+              <span class="sev" :class="`sev-${String(row.severity || '')}`">{{ row.severity }}</span>
+            </td>
             <td>
               <span :class="['pill', row.status === 0 ? 'ok' : 'bad']">
                 {{ row.status === 0 ? '成功' : '失败' }}
@@ -69,9 +86,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { noticeRecordList } from '@/api/notice'
 import { useNoticePerm } from '@/composables/useNoticePerm'
+import NotificationTypeIcon from '@/views/notice-objects/NotificationTypeIcon.vue'
+
+const props = defineProps({
+  /** 内嵌于通知对象 Drawer，固定 uuid 过滤 */
+  embedded: { type: Boolean, default: false },
+  /** 通知对象 uuid，对应请求参数 uuid */
+  noticeObjectId: { type: String, default: '' }
+})
 
 const perm = useNoticePerm()
 const loading = ref(false)
@@ -101,7 +126,7 @@ function resetFilters() {
   f.eventId = ''
   f.severity = ''
   f.status = ''
-  f.uuid = ''
+  f.uuid = props.embedded && props.noticeObjectId ? props.noticeObjectId : ''
   f.query = ''
   resetPage()
 }
@@ -125,11 +150,15 @@ async function load() {
   }
   loading.value = true
   try {
+    const uuid =
+      props.embedded && props.noticeObjectId
+        ? props.noticeObjectId
+        : f.uuid.trim() || undefined
     const data = await noticeRecordList({
-      eventId: f.eventId.trim() || undefined,
+      eventId: props.embedded ? undefined : f.eventId.trim() || undefined,
       severity: f.severity.trim() || undefined,
       status: f.status.trim() || undefined,
-      uuid: f.uuid.trim() || undefined,
+      uuid,
       query: f.query.trim() || undefined,
       index: index.value,
       size: size.value
@@ -146,12 +175,34 @@ async function load() {
   }
 }
 
-onMounted(() => load())
+watch(
+  () => props.noticeObjectId,
+  (id) => {
+    if (props.embedded && id) {
+      f.uuid = id
+      resetPage()
+    }
+  }
+)
+
+onMounted(() => {
+  if (props.embedded && props.noticeObjectId) {
+    f.uuid = props.noticeObjectId
+  }
+  load()
+})
 </script>
 
 <style scoped>
 .am-page {
   padding: 8px 0 32px;
+}
+.am-page.embedded {
+  padding: 0 0 16px;
+}
+.am-head-compact {
+  margin-bottom: 8px;
+  justify-content: flex-end;
 }
 .am-head {
   display: flex;
@@ -292,5 +343,18 @@ onMounted(() => load())
 .muted {
   color: #666;
   font-size: 13px;
+}
+.sev {
+  font-weight: 600;
+  font-size: 13px;
+}
+.sev-P0 {
+  color: #b91c1c;
+}
+.sev-P1 {
+  color: #c2410c;
+}
+.sev-P2 {
+  color: #4b5563;
 }
 </style>

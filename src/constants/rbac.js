@@ -1,46 +1,76 @@
 /**
- * 权限码与菜单、监控能力映射（后端 JWT / 登录响应应下发同名 permission 字符串）
+ * 访问控制：以角色档位为主（root / admin / user），不再按菜单 permission 码授权。
+ * 兼容：RBAC_RELAX_ALL、rbacLegacyMode 时仍视为最高档位，避免联调/旧环境锁死。
  */
+
+/** 为 true 时前端不校验菜单/路由档位（仅仍要求已登录）。联调完成后请改回 false。 */
+export const RBAC_RELAX_ALL = true
+
+/** 为 false 时隐藏「告警统计」菜单并拦截 `/alert`（临时开关，恢复时改回 true）。 */
+export const FEATURE_ALERT_STATISTICS = false
+
+/** 与登录用户角色编码对齐（小写比较）：root > admin > user */
+export const ROLE_CODE = {
+  ROOT: 'root',
+  ADMIN: 'admin',
+  USER: 'user'
+}
+
+/** 档位数值越大权限越高，用于路由 meta.access 与 getters 比较 */
+export const ACCESS_LEVEL = {
+  USER: 0,
+  ADMIN: 1,
+  ROOT: 2
+}
+
+/**
+ * @param {{ code?: string, name?: string }[]} roles
+ * @returns {typeof ACCESS_LEVEL[keyof typeof ACCESS_LEVEL]}
+ */
+export function resolveAccessLevelFromRoles(roles) {
+  if (!Array.isArray(roles) || !roles.length) return ACCESS_LEVEL.USER
+  const codes = roles.map((r) => String(r?.code ?? r?.name ?? '').trim().toLowerCase())
+  if (codes.some((c) => c === 'root' || c === 'superadmin' || c === 'system')) return ACCESS_LEVEL.ROOT
+  if (codes.some((c) => c === 'admin' || c === 'administrator')) return ACCESS_LEVEL.ADMIN
+  return ACCESS_LEVEL.USER
+}
+
+/**
+ * 路由 meta.access：'user' | 'admin' | 'root'
+ * 取匹配记录中的最高要求（root > admin > user）。
+ * @param {import('vue-router').RouteRecordNormalized[]} matched
+ */
+export function requiredAccessRankFromMatched(matched) {
+  let max = ACCESS_LEVEL.USER
+  for (const record of matched) {
+    const a = record.meta?.access
+    if (a === 'root') max = Math.max(max, ACCESS_LEVEL.ROOT)
+    else if (a === 'admin') max = Math.max(max, ACCESS_LEVEL.ADMIN)
+    else if (a === 'user') max = Math.max(max, ACCESS_LEVEL.USER)
+  }
+  return max
+}
+
+/** 登录后默认落地页（按角色可扩展；当前统一进监控面板） */
+export function defaultHomePath() {
+  return '/dashboard'
+}
+
+/** 以下为旧「菜单 permission」常量，仅用于 rbacLegacyMode / 后端仍下发细粒度码时的兼容，路由不再依赖。 */
 export const PERM = {
   MENU_DASHBOARD: 'menu:dashboard',
   MENU_ALERT: 'menu:alert',
   MENU_FAULT_CENTER: 'menu:faultcenter',
   MENU_ALERT_CONFIG: 'menu:alertconfig',
-  /** WatchAlert：规则组 / 规则 / 活跃与历史事件 / 静默 */
   MENU_ALERT_MGMT: 'menu:alert:mgmt',
+  MENU_DATASOURCE: 'menu:datasource',
   MENU_ALERT_SILENCE: 'menu:alertsilence',
   MENU_LOG_QUERY: 'menu:logquery',
-  /** 智能诊断（根因 / 巡检 / 历史） */
   MENU_AIOPS_RCA: 'menu:aiops:rca',
-  /** 经平台内嵌查看 Grafana 大盘（URL 仅由后端签发，前端不拼真实 Grafana 地址） */
   MONITOR_EMBED: 'monitor:embed',
-  /** 新开标签直达 Grafana（高敏，仅运维/管理员） */
   MONITOR_GRAFANA_DIRECT: 'monitor:grafana:direct',
   ADMIN_ROLE_MANAGE: 'admin:role:manage'
 }
 
-/** 旧后端仅返回 token、无 permissions 数组时，视为全量兼容 */
+/** 旧后端仅返回 token、无 permissions 且无 roles 时，视为全量兼容 */
 export const LEGACY_FULL_PERMISSIONS = Object.values(PERM)
-
-/**
- * 登录后默认进入的第一个有权限的菜单路径。
- * 若 JWT 未包含任何已知菜单权限，则落在「故障中心」（该路由未挂 permission，登录用户均可访问），
- * 避免误进「无权限」页看起来像未跳转。
- */
-export function defaultHomePath(hasPermission) {
-  const order = [
-    ['/dashboard', PERM.MENU_DASHBOARD],
-    ['/alert', PERM.MENU_ALERT],
-    ['/aiops-rca', PERM.MENU_AIOPS_RCA],
-    ['/alertconfig', PERM.MENU_ALERT_CONFIG],
-    ['/alert-mgmt', PERM.MENU_ALERT_MGMT],
-    ['/alertsilence', PERM.MENU_ALERT_SILENCE],
-    ['/logquery', PERM.MENU_LOG_QUERY],
-    ['/roleadmin', PERM.ADMIN_ROLE_MANAGE],
-    ['/fault-center', PERM.MENU_FAULT_CENTER]
-  ]
-  for (const [path, code] of order) {
-    if (hasPermission(code)) return path
-  }
-  return '/fault-center'
-}

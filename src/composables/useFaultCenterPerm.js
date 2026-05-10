@@ -1,18 +1,21 @@
 import { useUserStore } from '@/store/user'
+import { RBAC_RELAX_ALL, ACCESS_LEVEL } from '@/constants/rbac'
 import { FC_API, fcApiPathKey } from '@/constants/faultCenterApiPaths'
 
 /**
- * 故障中心按钮权限：优先匹配 JWT 中的「METHOD + 空格 + 完整 path」字符串。
- * rbacLegacyMode 时视为全量放行（兼容旧登录响应）。
- * SLO 在现网 Go 无 Permission 中间件，仅要求已登录，故 canSlo 恒 true。
+ * 故障中心按钮权限：运维档（admin/root）全放行；仅 user 档只读（列表/检索可看，写操作隐藏）。
+ * rbacLegacyMode / RBAC_RELAX_ALL 时仍按 JWT path 码或全放行（兼容旧后端）。
  */
 export function useFaultCenterPerm() {
   const userStore = useUserStore()
 
   /** @param {{ method: string, path: string }} op */
   function can(op) {
+    if (RBAC_RELAX_ALL) return true
     if (userStore.rbacLegacyMode) return true
-    return userStore.permissions.includes(fcApiPathKey(op))
+    if (userStore.accessLevel >= ACCESS_LEVEL.ADMIN) return true
+    const readOps = [fcApiPathKey(FC_API.LIST), fcApiPathKey(FC_API.SEARCH)]
+    return readOps.includes(fcApiPathKey(op))
   }
 
   return {

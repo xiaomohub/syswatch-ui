@@ -12,6 +12,14 @@ export const NOTICE_API = {
   TEST: { method: 'POST', path: '/api/w8t/notice/noticeTest' }
 }
 
+/** WatchAlert 通知模版（与 Permission 中间件 path 一致） */
+export const NOTICE_TMPL_API = {
+  LIST: { method: 'GET', path: '/api/w8t/noticeTemplate/noticeTemplateList' },
+  CREATE: { method: 'POST', path: '/api/w8t/noticeTemplate/noticeTemplateCreate' },
+  UPDATE: { method: 'POST', path: '/api/w8t/noticeTemplate/noticeTemplateUpdate' },
+  DELETE: { method: 'POST', path: '/api/w8t/noticeTemplate/noticeTemplateDelete' }
+}
+
 /** @param {{ method: string, path: string }} op */
 export function noticeApiPathKey(op) {
   return `${op.method} ${op.path}`

@@ -1,8 +1,21 @@
 <template>
   <div class="fc-page">
-    <div class="fc-page-head">
-      <h2>工作台</h2>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+    <div class="fc-page-head fc-head-unified">
+      <div class="fc-head-start">
+        <button
+          type="button"
+          class="fc-back-dashboard"
+          aria-label="返回监控面板"
+          title="返回监控面板"
+          @click="goDashboard"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <h2>工作台</h2>
+      </div>
+      <div class="fc-head-end">
         <label class="field" style="margin: 0; flex-direction: row; align-items: center; gap: 8px">
           <span style="white-space: nowrap">故障中心</span>
           <select v-model="selectedId" class="fc-input" style="min-width: 220px" @change="onSelectFc">
@@ -142,6 +155,10 @@ function onSelectFc() {
 
 function goList() {
   router.push({ name: 'FaultCenterList' })
+}
+
+function goDashboard() {
+  router.push({ name: 'Dashboard' })
 }
 
 watch(

@@ -60,6 +60,7 @@ import { ref } from 'vue'
 import http from '@/utils/http'
 import { useUserStore } from '@/store/user'
 import { defaultHomePath } from '@/constants/rbac'
+import { effectiveLoginPermissions, extractLoginRoles } from '@/utils/loginPermissions'
 import router from '@/router'
 import { isNavigationFailure, NavigationFailureType } from 'vue-router'
 
@@ -109,7 +110,7 @@ function hardNavigateTo(pathOrFull) {
   window.location.assign(`${window.location.origin}${base}${p}`)
 }
 
-function resolvePostLoginTarget(hasPermission) {
+function resolvePostLoginTarget() {
   const redirect = router.currentRoute.value.query.redirect
   if (typeof redirect === 'string' && redirect.trim()) {
     const r = redirect.trim()
@@ -120,11 +121,11 @@ function resolvePostLoginTarget(hasPermission) {
       } catch {
         /* ignore */
       }
-      return defaultHomePath(hasPermission)
+      return defaultHomePath()
     }
     return r.startsWith('/') ? r : `/${r}`
   }
-  return defaultHomePath(hasPermission)
+  return defaultHomePath()
 }
 
 const doLogin = async () => {
@@ -143,16 +144,28 @@ const doLogin = async () => {
         '登录响应缺少 token（支持字段：token / accessToken / access_token / jwt 等，可嵌套在 data、result 内）'
       return
     }
-    const hasPermKey = Object.prototype.hasOwnProperty.call(flat, 'permissions')
-    const permissionsOmitted = !hasPermKey
-    const permissions = hasPermKey ? flat.permissions : undefined
+    const { merged, permissionsOmitted } = effectiveLoginPermissions(flat, token)
+    const loginRoles = extractLoginRoles(flat, token)
+    let user = flat.user
+    if (user && typeof user === 'object') {
+      user = {
+        ...user,
+        roles: Array.isArray(user.roles) && user.roles.length ? user.roles : loginRoles
+      }
+    } else if (flat.username != null) {
+      user = {
+        username: String(flat.username),
+        displayName: flat.displayName,
+        roles: loginRoles
+      }
+    }
     userStore.setSession({
       token,
-      user: flat.user,
-      permissions,
+      user,
+      permissions: permissionsOmitted ? undefined : merged,
       permissionsOmitted
     })
-    const target = resolvePostLoginTarget(userStore.hasPermission)
+    const target = resolvePostLoginTarget()
     try {
       await router.replace(target)
     } catch (navErr) {

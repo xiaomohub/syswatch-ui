@@ -13,6 +13,54 @@
   gap: 12px;
 }
 
+/* 顶栏：左上返回监控面板（左箭头）+ 标题 + 右侧操作 */
+.fc-head-unified {
+  align-items: center;
+}
+
+.fc-head-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-head-titles {
+  min-width: 0;
+}
+
+.fc-head-titles h2 {
+  margin: 0;
+}
+
+.fc-back-dashboard {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.fc-back-dashboard:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+
+.fc-head-end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .fc-page-head h2 {
   margin: 0;
   font-size: 18px;

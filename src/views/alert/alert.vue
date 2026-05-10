@@ -1,5 +1,22 @@
 <template>
   <div class="alert-page">
+    <div class="fc-page-head fc-head-unified">
+      <div class="fc-head-start">
+        <button
+          type="button"
+          class="fc-back-dashboard"
+          aria-label="返回监控面板"
+          title="返回监控面板"
+          @click="goDashboard"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <h2>告警统计</h2>
+      </div>
+    </div>
+
     <!-- Alert Overview -->
     <div class="alert-overview">
       <div 
@@ -303,13 +320,18 @@
 <script setup>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import '../faultcenter/faultCenterCommon.css'
 import http from '@/utils/http'
 import { useUserStore } from '@/store/user'
-import { PERM } from '@/constants/rbac'
+import { ACCESS_LEVEL } from '@/constants/rbac'
 
 const router = useRouter()
 const userStore = useUserStore()
-const canAiopsRca = computed(() => userStore.hasPermission(PERM.MENU_AIOPS_RCA))
+const canAiopsRca = computed(() => userStore.accessLevel >= ACCESS_LEVEL.ADMIN)
+
+function goDashboard() {
+  router.push({ name: 'Dashboard' })
+}
 
 const AIOPS_PREFILL_KEY = 'aiops_rca_prefill'
 

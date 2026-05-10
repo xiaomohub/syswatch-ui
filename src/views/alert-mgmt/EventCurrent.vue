@@ -2,10 +2,10 @@
   <div class="am-page">
     <div class="am-head">
       <h2 class="am-title">活跃告警</h2>
-      <button type="button" class="am-btn" :disabled="loading || !fcStore.currentFaultCenterId" @click="load">刷新</button>
+      <button type="button" class="am-btn" :disabled="loading || !effectiveFc" @click="load">刷新</button>
     </div>
 
-    <p v-if="!fcStore.currentFaultCenterId" class="am-warn">请先在顶部选择故障中心。</p>
+    <p v-if="!effectiveFc" class="am-warn">{{ embedHint }}</p>
 
     <div class="am-filters">
       <input v-model="query" class="am-input sm" placeholder="query" @keyup.enter="resetPage">
@@ -38,7 +38,7 @@
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="8" class="am-empty">{{ fcStore.currentFaultCenterId ? '暂无活跃告警' : '—' }}</td>
+            <td colspan="8" class="am-empty">{{ effectiveFc ? '暂无活跃告警' : '—' }}</td>
           </tr>
           <tr v-for="row in rows" :key="row.fingerprint">
             <td class="mono">{{ row.fingerprint }}</td>
@@ -46,13 +46,8 @@
             <td>{{ row.severity || '—' }}</td>
             <td>{{ row.status || '—' }}</td>
             <td><code>{{ row.faultCenterId || '—' }}</code></td>
-            <td>{{ formatTs(row.first_trigger_time) }}</td>
-            <td class="small">
-              <template v-if="row.confirmState?.isOk">
-                {{ row.confirmState.confirmUsername || '已认领' }}
-              </template>
-              <template v-else>—</template>
-            </td>
+            <td>{{ formatEventTs(pickFirstTriggerTime(row)) }}</td>
+            <td class="small">{{ claimCell(row) }}</td>
             <td class="tc">
               <button type="button" class="link" @click="openComments(row)">评论</button>
               <button type="button" class="link" @click="claim(row)">认领</button>
@@ -62,8 +57,8 @@
         </tbody>
       </table>
 
-      <div v-if="total > size" class="am-pager">
-        <span class="muted">共 {{ total }} 条</span>
+      <div v-if="totalPages > 1" class="am-pager">
+        <span class="muted">共 {{ total }} 条，每页 {{ PAGE_SIZE }} 条</span>
         <button type="button" class="am-btn sm" :disabled="index <= 1" @click="goPage(index - 1)">上一页</button>
         <span>{{ index }} / {{ totalPages }}</span>
         <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
@@ -105,8 +100,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
+import { formatEventTs, pickFirstTriggerTime, pickConfirmDisplay } from '@/utils/w8tEventDisplay'
 import {
   curEventList,
   eventProcess,
@@ -117,14 +114,36 @@ import {
 } from '@/api/w8tAlert'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
 
+const props = defineProps({
+  /** 详情页嵌入时传入，优先于全局上下文 */
+  faultCenterId: { type: String, default: '' },
+  /** 与详情 URL <code>?query=</code> 双向同步（深链） */
+  syncDetailRouteQuery: { type: Boolean, default: false }
+})
+
 const fcStore = useFaultCenterContextStore()
+const route = useRoute()
+const router = useRouter()
+
+const effectiveFc = computed(() => (props.faultCenterId || '').trim() || fcStore.currentFaultCenterId)
+const embedHint = computed(() =>
+  props.faultCenterId ? '缺少故障中心 ID。' : '请先在顶部选择故障中心。'
+)
+
+/** 行内故障中心 ID（列表字段）优先，便于与 Java BFF 的 fault_center_id 对齐 */
+function faultCenterIdForRow(row) {
+  const fromRow = String(row?.faultCenterId ?? row?.fault_center_id ?? '').trim()
+  const g = String(effectiveFc.value ?? '').trim()
+  return fromRow || g
+}
 
 const loading = ref(false)
 const pageError = ref('')
 const rows = ref([])
 const total = ref(0)
 const index = ref(1)
-const size = ref(20)
+/** 与请求绑定；不因后端缺省/错误的 size 回写而漂移，避免分页条不出现或页码错乱 */
+const PAGE_SIZE = 10
 
 const query = ref('')
 const severity = ref('')
@@ -133,42 +152,66 @@ const status = ref('')
 const scopeDays = ref(7)
 const sortOrder = ref('descend')
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
-function formatTs(v) {
-  if (v == null || v === '') return '—'
-  const n = Number(v)
-  const ms = n < 1e12 ? n * 1000 : n
-  try {
-    return new Date(ms).toLocaleString('zh-CN')
-  } catch {
-    return String(v)
-  }
+/** @param {Record<string, unknown>} row */
+function claimCell(row) {
+  const { isOk, confirmUsername } = pickConfirmDisplay(row)
+  if (!isOk) return '—'
+  return confirmUsername || '已认领'
+}
+
+function syncQueryToRoute() {
+  if (!props.syncDetailRouteQuery) return
+  const nextQ = query.value?.trim() || ''
+  const q = { ...route.query }
+  if (nextQ) q.query = nextQ
+  else delete q.query
+  router.replace({ path: route.path, query: q })
 }
 
 function resetPage() {
   index.value = 1
+  syncQueryToRoute()
   load()
 }
 
+function applyRouteQueryToLocal() {
+  if (!props.syncDetailRouteQuery) return
+  const raw = route.query.query
+  const s = raw == null ? '' : Array.isArray(raw) ? String(raw[0] ?? '') : String(raw)
+  if (s !== query.value) query.value = s
+}
+
+applyRouteQueryToLocal()
+
 watch(
-  () => fcStore.currentFaultCenterId,
+  () => effectiveFc.value,
   (id) => {
     if (id) resetPage()
     else {
       rows.value = []
       total.value = 0
     }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.query,
+  () => {
+    if (!props.syncDetailRouteQuery) return
+    applyRouteQueryToLocal()
+    if (effectiveFc.value) load()
   }
 )
 
 async function load() {
-  const fc = fcStore.currentFaultCenterId
+  const fc = effectiveFc.value
   if (!fc) return
   pageError.value = ''
   loading.value = true
   try {
-    const sz = Math.max(1, Number(size.value) || 20)
     const data = await curEventList({
       faultCenterId: fc,
       query: query.value?.trim() || undefined,
@@ -178,13 +221,13 @@ async function load() {
       scope: scopeDays.value > 0 ? scopeDays.value : 7,
       sortOrder: sortOrder.value,
       index: index.value,
-      size: sz
+      size: PAGE_SIZE
     })
     const n = normalizeListPayload(data)
     rows.value = n.list
     total.value = n.total
-    index.value = n.index
-    size.value = n.size
+    const tp = Math.max(1, Math.ceil((n.total || 0) / PAGE_SIZE))
+    index.value = Math.min(Math.max(1, Number(n.index) || index.value), tp)
   } catch (e) {
     rows.value = []
     pageError.value = e?.message || '加载失败'
@@ -194,12 +237,13 @@ async function load() {
 }
 
 function goPage(p) {
-  index.value = Math.max(1, Math.min(p, totalPages.value))
+  const tp = Math.max(1, Math.ceil(total.value / PAGE_SIZE))
+  index.value = Math.max(1, Math.min(p, tp))
   load()
 }
 
 async function claim(row) {
-  const fc = fcStore.currentFaultCenterId
+  const fc = faultCenterIdForRow(row)
   if (!fc || !row.fingerprint) return
   try {
     await eventProcess({ faultCenterId: fc, fingerprints: [row.fingerprint] })
@@ -210,7 +254,7 @@ async function claim(row) {
 }
 
 async function removeEv(row) {
-  const fc = fcStore.currentFaultCenterId
+  const fc = faultCenterIdForRow(row)
   if (!fc || !row.fingerprint) return
   if (!confirm('从 Redis 删除该活跃事件？')) return
   try {
@@ -223,6 +267,8 @@ async function removeEv(row) {
 
 const commentOpen = ref(false)
 const commentFp = ref('')
+/** 打开评论弹窗时的故障中心，与列表行一致 */
+const commentFc = ref('')
 const comments = ref([])
 const commentsLoading = ref(false)
 const newComment = ref('')
@@ -231,6 +277,7 @@ const commentSaving = ref(false)
 
 async function openComments(row) {
   commentFp.value = row.fingerprint
+  commentFc.value = faultCenterIdForRow(row)
   newComment.value = ''
   commentErr.value = ''
   commentOpen.value = true
@@ -240,7 +287,8 @@ async function openComments(row) {
   try {
     const data = await eventListComments({
       tenantId: tenantId || undefined,
-      fingerprint: row.fingerprint
+      fingerprint: row.fingerprint,
+      faultCenterId: commentFc.value || undefined
     })
     comments.value = Array.isArray(data) ? data : data?.list || data?.records || []
   } catch (e) {
@@ -251,7 +299,7 @@ async function openComments(row) {
 }
 
 async function addComment() {
-  const fc = fcStore.currentFaultCenterId
+  const fc = (commentFc.value || effectiveFc.value || '').trim()
   if (!fc || !commentFp.value || !newComment.value?.trim()) return
   commentSaving.value = true
   commentErr.value = ''
@@ -280,9 +328,6 @@ async function delComment(commentId) {
   }
 }
 
-onMounted(() => {
-  if (fcStore.currentFaultCenterId) load()
-})
 </script>
 
 <style scoped>

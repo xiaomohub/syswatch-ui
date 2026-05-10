@@ -6,12 +6,15 @@ export function normalizeListPayload(data) {
   if (!data || typeof data !== 'object') {
     return { list: [], total: 0, index: 1, size: 20 }
   }
-  const list = data.list ?? data.records ?? []
+  const list = data.list ?? data.records ?? data.List ?? data.Records ?? []
+  const totalRaw = data.total ?? data.Total ?? data.count ?? data.totalCount
+  const indexRaw = data.index ?? data.Index
+  const sizeRaw = data.size ?? data.Size
   return {
     list: Array.isArray(list) ? list : [],
-    total: Number(data.total) || 0,
-    index: Math.max(1, Number(data.index) || 1),
-    size: Math.max(1, Number(data.size) || 20)
+    total: Number(totalRaw) || 0,
+    index: Math.max(1, Number(indexRaw) || 1),
+    size: Math.max(1, Number(sizeRaw) || 20)
   }
 }
 

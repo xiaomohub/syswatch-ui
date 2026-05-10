@@ -287,7 +287,7 @@
 ## 15. 与本仓库（syswatch-ui）前端交叉引用
 
 - Vue 侧接口路径、权限 Path 列表、页面能力：`docs/faultcenter-api.md`
-- 前端实现：`src/api/faultcenter.js`、`src/views/faultcenter/FaultCenter.vue`
+- 前端实现：`src/api/faultcenter.js`、`src/views/faultcenter/FaultCenterList.vue`、`src/views/faultcenter/FaultCenterCreateModal.vue`
 
 后端实现 **List 返回数组**、**Search 返回单对象**、**SLO 返回 `mtta`/`mttr` 各 7 个 float** 时，应与上述前端 `unwrapW8t` 及字段命名保持一致（大小写以实际 JSON tag 为准，联调时核对 `MTTA` vs `mtta` 等别名）。
 
@@ -333,8 +333,94 @@
 
 后端若尚未返回上述字段，列显示为「—」，不影响接口兼容。扩展时建议在 `w8t_fault_center` 或 List 的 DTO 中增加 `category`/`scope`/`tags`（及 JSON tag），与前端 `FaultCenter.vue` 中 `scopeLabel` 一致。
 
-### 17.3 与「简易创建」表单的契约
+### 17.3 与创建弹窗表单的契约（当前实现）
 
-前端「新建故障中心」仅提交最小集合：**名称、描述、通知对象 ID 列表、统一重复通知间隔（分钟，映射到 `repeatNoticeInterval` 的 P0–P3 相同值）、恢复是否通知、事件聚合（`aggregationType`）、恢复等待秒数**；`noticeRoutes` 置空数组，升级相关字段为关闭/默认。
+创建入口为**列表页弹窗**（非独立路由页），提交 **`POST /api/w8t/faultCenter/faultCenterCreate`**，请求体由前端 `FaultCenterCreateModal.vue` 中 `buildBodyFromForm()` 组装，字段与 WatchAlert `RequestFaultCenterCreate` / `FaultCenter` 模型对齐。
 
-编辑时可展开「高级选项」维护 `noticeRoutes`、分等级重复间隔与告警升级策略；**更新**仍走 `faultCenterUpdate` 全量字段，后端行为与现有模型一致。
+**校验（前端 + 建议后端一致）**
+
+- `name`：必填，trim 后非空；名称中不允许空格（前端拦截空格输入）。
+- `noticeIds` 与 `noticeRoutes`：**至少其一有效**——默认通知对象非空，或存在至少一条「含 `noticeIds` 或有效 `labels`」的路由（空 key/value 的 label 会被前端过滤）。
+
+**固定常量（创建时写死，与 WatchAlert 消费者一致）**
+
+- `aggregationType`: `"Rule"`
+- `recoverNotify`: `true`
+
+**升级相关（弹窗未暴露 UI 时为默认）**
+
+- `isUpgradeEnabled`: `false`
+- `upgradableSeverity`: `[]`
+- `upgradeStrategy`: `{ enabled: false, timeout: 0, repeatInterval: 0, noticeId: "" }`
+
+更完整的 JSON 形状与示例见 **第 18 节**。
+
+编辑时可走详情页或后续「编辑」能力维护 `noticeRoutes`、分等级重复间隔与告警升级策略；**更新**仍走 `faultCenterUpdate` 全量字段，后端行为与现有模型一致。
+
+---
+
+## 18. `faultCenterCreate` 请求/响应契约（联调清单）
+
+### 18.1 HTTP
+
+| 项 | 值 |
+|----|-----|
+| Method | `POST` |
+| Path | `/api/w8t/faultCenter/faultCenterCreate` |
+| Content-Type | `application/json` |
+| 租户 | `TenantId` 由网关 / `ParseTenant` 注入，**请求体可不传** |
+
+### 18.2 请求体（与前端发送字段一致）
+
+```json
+{
+  "name": "订单核心",
+  "description": "可选说明",
+  "noticeIds": ["uuid-notice-a", "uuid-notice-b"],
+  "noticeRoutes": [
+    {
+      "labels": [
+        { "key": "team", "value": "payment", "operator": "=" }
+      ],
+      "noticeIds": ["uuid-oncall-pay"]
+    }
+  ],
+  "repeatNoticeInterval": {
+    "0": 60,
+    "1": 60,
+    "2": 60
+  },
+  "recoverNotify": true,
+  "aggregationType": "Rule",
+  "recoverWaitTime": 30,
+  "isUpgradeEnabled": false,
+  "upgradableSeverity": [],
+  "upgradeStrategy": {
+    "enabled": false,
+    "timeout": 0,
+    "repeatInterval": 0,
+    "noticeId": ""
+  }
+}
+```
+
+说明：
+
+- `repeatNoticeInterval` 的 key 为**字符串**形式的严重级别（与 WatchAlert 一致：`"0"`/`"1"`/`"2"` 对应 P0/P1/P2 等），值为**分钟**。
+- `noticeRoutes[].labels[].operator` 允许：`=`、`!=`、`=~`、`!~`（与规则 label matcher 一致）。
+- `noticeRoutes` 可为 `[]`；若 `noticeIds` 非空则允许无路由。
+
+### 18.3 成功响应 `data`（前端解析）
+
+统一信封：`{ "code": 200, "data": ..., "msg": "" }`（或 `code: 0`）。
+
+前端 `extractCreatedId` 兼容以下 `data` 形状（用于创建成功后跳转详情）：
+
+1. 字符串：新中心 ID，例如 `"fc-xxxx"`  
+2. 对象：含 `id` 字段，例如 `{ "id": "fc-xxxx", ... }`
+
+若 `data` 无法解析出 id，前端仍关闭弹窗并刷新列表，但不跳转详情。
+
+### 18.4 失败响应
+
+`code !== 200 && code !== 0` 时，`msg`（或 `message`）应携带可读错误信息；前端原样展示给用户。

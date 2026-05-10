@@ -22,9 +22,9 @@ export async function noticeUpdate(body) {
   return unwrapW8t(res)
 }
 
-/** @param {string} uuid */
-export async function noticeDelete(uuid) {
-  const res = await http.post(`${prefix}/noticeDelete`, { uuid }, json)
+/** @param {{ uuid: string, name: string }} body */
+export async function noticeDelete(body) {
+  const res = await http.post(`${prefix}/noticeDelete`, body, json)
   return unwrapW8t(res)
 }
 

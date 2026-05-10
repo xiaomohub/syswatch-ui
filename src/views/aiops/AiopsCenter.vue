@@ -69,7 +69,7 @@
         <div class="panel">
           <h2 class="panel-h">分析结果</h2>
           <div v-if="!rcaResult && !rcaLoading && !rcaError" class="muted">
-            提交后展示接口返回结构。可从「告警统计」快捷预填本表单。
+            提交后展示接口返回结构。可粘贴告警 JSON 或按需填写下方字段。
           </div>
           <div v-if="rcaLoading" class="row-loading">
             <span class="spinner" />
