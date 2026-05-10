@@ -309,12 +309,19 @@ const form = reactive({
 const isHttpType = computed(() => DATASOURCE_HTTP_TYPES.has(form.type))
 
 function typeAbbr(t) {
+  const map = {
+    Prometheus: 'PR',
+    VictoriaMetrics: 'VI',
+    ElasticSearch: 'ES',
+    Kubernetes: 'KU',
+    Loki: 'LO'
+  }
+  if (t && map[t]) return map[t]
   if (!t) return '?'
   if (t === 'AliCloudSLS') return 'SLS'
-  if (t === 'ElasticSearch') return 'ES'
   if (t === 'VictoriaLogs') return 'VL'
   if (t === 'ClickHouse') return 'CH'
-  return t.slice(0, 2).toUpperCase()
+  return String(t).slice(0, 2).toUpperCase()
 }
 
 function trimRow(row, k) {

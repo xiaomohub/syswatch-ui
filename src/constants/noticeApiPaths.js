@@ -8,6 +8,7 @@ export const NOTICE_API = {
   DELETE: { method: 'POST', path: '/api/w8t/notice/noticeDelete' },
   LIST: { method: 'GET', path: '/api/w8t/notice/noticeList' },
   RECORD_LIST: { method: 'GET', path: '/api/w8t/notice/noticeRecordList' },
+  RECORD_ALARM_DETAIL: { method: 'GET', path: '/api/w8t/notice/noticeRecordAlarmDetail' },
   RECORD_METRIC: { method: 'GET', path: '/api/w8t/notice/noticeRecordMetric' },
   TEST: { method: 'POST', path: '/api/w8t/notice/noticeTest' }
 }

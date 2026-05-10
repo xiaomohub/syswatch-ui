@@ -238,19 +238,30 @@ export async function silenceList(params) {
 }
 
 /** @param {Record<string, unknown>} body */
+function mergeSilenceBody(body) {
+  const b = { ...body }
+  const fc = b.faultCenterId ?? b.fault_center_id
+  if (fc != null && String(fc).trim() !== '') {
+    b.faultCenterId = b.faultCenterId ?? fc
+    b.fault_center_id = b.fault_center_id ?? fc
+  }
+  return b
+}
+
+/** @param {Record<string, unknown>} body */
 export async function silenceCreate(body) {
-  const res = await http.post(`${W8T_BASE}/silence/silenceCreate`, body, json)
+  const res = await http.post(`${W8T_BASE}/silence/silenceCreate`, mergeSilenceBody(body), json)
   return unwrapW8t(res)
 }
 
 /** @param {Record<string, unknown>} body */
 export async function silenceUpdate(body) {
-  const res = await http.post(`${W8T_BASE}/silence/silenceUpdate`, body, json)
+  const res = await http.post(`${W8T_BASE}/silence/silenceUpdate`, mergeSilenceBody(body), json)
   return unwrapW8t(res)
 }
 
 /** @param {Record<string, unknown>} body */
 export async function silenceDelete(body) {
-  const res = await http.post(`${W8T_BASE}/silence/silenceDelete`, body, json)
+  const res = await http.post(`${W8T_BASE}/silence/silenceDelete`, mergeSilenceBody(body), json)
   return unwrapW8t(res)
 }

@@ -100,7 +100,6 @@
             <SilenceList
               :fault-center-id="centerId"
               show-aggregation-bar
-              use-modal-for-form
               :aggregation-type="detail.aggregationType || 'Rule'"
               @detail-updated="reloadDetailOnly"
             />
@@ -133,7 +132,7 @@ const perm = useFaultCenterPerm()
 const tabs = [
   { key: '1', label: '活跃告警' },
   { key: '2', label: '历史告警' },
-  { key: '3', label: '降噪配置' },
+  { key: '3', label: '告警静默' },
   { key: '4', label: '通知配置' }
 ]
 

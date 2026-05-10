@@ -1,8 +1,8 @@
 import http from '@/utils/http'
 
 /**
- * 角色模型已改为 root/admin/user 档位，不再维护「按菜单的 permission 码」。
- * 后端若仍提供 GET /api/rbac/permissions，则 RoleAdmin 展示远端列表；否则为空。
+ * 角色模型为 root/admin/user 三档；前端「角色与权限」页不再编辑模块权限码。
+ * 保留空目录供将来脚本或极少数场景复用。
  */
 export function localPermissionCatalog() {
   return []
@@ -55,7 +55,7 @@ export async function fetchRoles() {
   return rows.map(normalizeRole).filter(Boolean)
 }
 
-/** @returns {Promise<{ code: string, name: string }[] | null>} null 表示请求失败，调用方用本地字典 */
+/** @returns {Promise<{ code: string, name: string }[] | null>} 细粒度权限目录；当前 UI 未使用 */
 export async function fetchPermissionsCatalogOptional() {
   try {
     const res = await http.get('/api/rbac/permissions')
@@ -70,6 +70,7 @@ export async function fetchPermissionsCatalogOptional() {
   }
 }
 
+/** 前端已不再调用；若后端仍暴露该接口可自行联调 */
 export async function updateRolePermissions(roleId, permissionCodes) {
   await http.put(`/api/rbac/roles/${roleId}/permissions`, { permissionCodes })
 }

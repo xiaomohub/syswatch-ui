@@ -28,7 +28,7 @@ export async function noticeDelete(body) {
   return unwrapW8t(res)
 }
 
-/** @param {{ eventId?: string, severity?: string, status?: string, uuid?: string, query?: string, index?: number, size?: number }} params */
+/** @param {{ eventId?: string, severity?: string, status?: string, uuid?: string, query?: string, index?: number, size?: number }} params 列表项可含可选字段 alarmDetail，见 docs/notice-record-alarm-detail.md */
 export async function noticeRecordList(params) {
   const res = await http.get(`${prefix}/noticeRecordList`, { params })
   return unwrapW8t(res)
@@ -36,6 +36,27 @@ export async function noticeRecordList(params) {
 
 export async function noticeRecordMetric() {
   const res = await http.get(`${prefix}/noticeRecordMetric`)
+  return unwrapW8t(res)
+}
+
+/**
+ * 按事件指纹拉取完整告警事件（列表仅摘要时）。
+ * Query 同时带 camelCase / snake_case，兼容网关与 Java 风格。
+ * @param {{ eventId?: string, event_id?: string, faultCenterId?: string, fault_center_id?: string }} params
+ */
+export async function noticeRecordAlarmDetail(params) {
+  const eid = String(params?.eventId ?? params?.event_id ?? '').trim()
+  const fc = String(params?.faultCenterId ?? params?.fault_center_id ?? '').trim()
+  const q = {}
+  if (eid) {
+    q.eventId = eid
+    q.event_id = eid
+  }
+  if (fc) {
+    q.faultCenterId = fc
+    q.fault_center_id = fc
+  }
+  const res = await http.get(`${prefix}/noticeRecordAlarmDetail`, { params: q })
   return unwrapW8t(res)
 }
 

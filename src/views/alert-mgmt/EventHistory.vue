@@ -35,18 +35,25 @@
             <th>级别</th>
             <th>数据源</th>
             <th>首次触发</th>
+            <th>恢复时间</th>
+            <th>认领人</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="5" class="am-empty">{{ effectiveFc ? '暂无历史记录' : '—' }}</td>
+            <td colspan="7" class="am-empty">{{ effectiveFc ? '暂无历史记录' : '—' }}</td>
           </tr>
-          <tr v-for="(row, i) in rows" :key="row.fingerprint || row.id || i">
-            <td class="mono">{{ row.fingerprint || '—' }}</td>
+          <tr v-for="(row, i) in rows" :key="pickEventFingerprint(row) || row.id || `h-${i}`">
+            <td class="mono">{{ pickEventFingerprint(row) || '—' }}</td>
             <td>{{ pickHisEventRuleName(row) || '—' }}</td>
             <td>{{ row.severity || '—' }}</td>
             <td>{{ pickHisEventDatasourceDisplay(row) || '—' }}</td>
-            <td>{{ formatEventTs(pickFirstTriggerTime(row)) }}</td>
+            <td class="nw">{{ formatEventTs(pickFirstTriggerTime(row)) }}</td>
+            <td class="nw">{{ formatEventTs(pickRecoverTime(row)) }}</td>
+            <td class="claim-cell claim-stack">
+              <div>{{ formatHisEventClaimCell(row) }}</div>
+              <div v-if="hisClaimTimeLine(row)" class="claim-time">{{ hisClaimTimeLine(row) }}</div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -67,9 +74,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
 import {
   formatEventTs,
+  formatHisEventClaimCell,
+  formatConfirmTimeCell,
   pickFirstTriggerTime,
+  pickRecoverTime,
   pickHisEventRuleName,
-  pickHisEventDatasourceDisplay
+  pickHisEventDatasourceDisplay,
+  pickEventFingerprint
 } from '@/utils/w8tEventDisplay'
 import { hisEventList } from '@/api/w8tAlert'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
@@ -107,6 +118,12 @@ const endLocal = ref('')
 const sortOrder = ref('descend')
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+
+/** @param {Record<string, unknown>} row */
+function hisClaimTimeLine(row) {
+  const t = formatConfirmTimeCell(row)
+  return t === '—' ? '' : t
+}
 
 function toUnixSec(localStr) {
   if (!localStr) return undefined
@@ -240,10 +257,14 @@ function goPage(p) {
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.am-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+.am-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 960px; }
 .am-table th, .am-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-default); text-align: left; }
 .am-table th { background: #fafafa; font-weight: 600; }
 .mono { font-family: ui-monospace, monospace; word-break: break-all; }
+.nw { white-space: nowrap; }
+.claim-cell { font-size: 13px; max-width: 160px; word-break: break-word; }
+.claim-stack { vertical-align: top; line-height: 1.35; }
+.claim-time { font-size: 11px; color: #64748b; margin-top: 2px; }
 .am-empty { text-align: center; color: #888; padding: 24px; }
 .am-pager { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid var(--border-default); }
 .muted { color: #666; font-size: 13px; }

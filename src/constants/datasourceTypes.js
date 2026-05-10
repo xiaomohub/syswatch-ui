@@ -1,16 +1,11 @@
-/** 数据源管理页类型卡片 value 与列表「数据源类型」展示一致 */
+/** 数据源管理页「步骤 1 选择数据源」卡片（新建仅展示这些；缩写 PR/VI/ES/KU/LO 见 DatasourceFormDrawer typeAbbr） */
 
 export const DATASOURCE_TYPE_CARDS = [
   { value: 'Prometheus', label: 'Prometheus' },
   { value: 'VictoriaMetrics', label: 'VictoriaMetrics' },
-  { value: 'AliCloudSLS', label: '阿里云SLS' },
-  { value: 'Jaeger', label: 'Jaeger' },
-  { value: 'Loki', label: 'Loki' },
-  { value: 'CloudWatch', label: 'CloudWatch' },
-  { value: 'Kubernetes', label: 'Kubernetes' },
   { value: 'ElasticSearch', label: 'ElasticSearch' },
-  { value: 'VictoriaLogs', label: 'VictoriaLogs' },
-  { value: 'ClickHouse', label: 'ClickHouse' }
+  { value: 'Kubernetes', label: 'Kubernetes' },
+  { value: 'Loki', label: 'Loki' }
 ]
 
 /** 走 HTTP 配置块（url / timeout / headers / auth）的类型 */

@@ -72,3 +72,41 @@ export function buildLabelsSummary(labels) {
     .map((l) => `${l.key}${l.operator}${l.value}`)
     .join(', ')
 }
+
+/**
+ * 从活跃事件行推导静默标签条件（与 SilenceForm / WatchAlert 标签匹配一致）。
+ * 优先使用事件上的 `labels` 对象（或 JSON 字符串）；否则用规则名作为 `alertname`。
+ *
+ * @param {Record<string, unknown>} row curEvent 列表项
+ * @returns {{ key: string, value: string, operator: string }[]}
+ */
+export function eventRowToSilenceLabelRows(row) {
+  let labelsObj = row?.labels
+  if (typeof labelsObj === 'string') {
+    try {
+      labelsObj = JSON.parse(labelsObj)
+    } catch {
+      labelsObj = null
+    }
+  }
+  if (labelsObj && typeof labelsObj === 'object' && !Array.isArray(labelsObj)) {
+    const out = []
+    for (const [k, v] of Object.entries(labelsObj)) {
+      if (v == null || String(k).trim() === '') continue
+      const sv =
+        typeof v === 'string'
+          ? v
+          : typeof v === 'number' || typeof v === 'boolean'
+            ? String(v)
+            : ''
+      if (!sv) continue
+      out.push({ key: k, value: sv, operator: '==' })
+    }
+    if (out.length) return out
+  }
+  const rule = String(row?.rule_name ?? row?.ruleName ?? '').trim()
+  if (rule) {
+    return [{ key: 'alertname', value: rule, operator: '==' }]
+  }
+  return []
+}

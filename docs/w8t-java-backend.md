@@ -60,11 +60,11 @@ WatchAlert（Go）历史接口多为 **camelCase**；Java 侧若使用 **snake_c
 | `index` | 页码，从 1 |
 | `size` | 每页条数 |
 
-**响应**：分页对象；列表项常见字段含 `fingerprint`、`rule_name` / `ruleName`、`severity`、`status`、`faultCenterId` 等。
+**响应**：分页对象；列表项常见字段含 `fingerprint`、`rule_name` / `ruleName`、`severity`、`status`、`faultCenterId` 等；指纹与 Redis field 对齐时可能仅有 **`_redisField` / `event_id`**（见 `pickEventFingerprint`）。
 
-**首次触发时间（列表「首次触发」列）**：前端会依次识别 `first_trigger_time`、`firstTriggerTime`、`startsAt`、`createTime`、`triggerTime` 等（见 `src/utils/w8tEventDisplay.js` `pickFirstTriggerTime`）。时间值支持 Unix 秒/毫秒（数字或纯数字字符串）及 ISO-8601 字符串。
+**首次触发时间（列表「首次触发」列）**：前端 **优先** `first_trigger_time`（Unix 秒），再 `firstTriggerTime` / `FirstTriggerTime` 等（见 `pickFirstTriggerTime`）。时间值支持 Unix 秒/毫秒（数字或纯数字字符串）及 ISO-8601 字符串。
 
-**认领状态（「认领」列）**：前端会识别嵌套对象 `confirmState` / `confirm_state`，字段 `isOk` / `is_ok` 与 `confirmUsername` / `confirm_username`；也支持顶层 `claimed`、`confirm_username`、`confirmedBy` 等（见 `pickConfirmDisplay`）。认领接口应对 Redis/库中的事件写入与列表一致的字段，否则刷新后仍显示「—」。
+**认领（「认领」列）**：`pickConfirmDisplay` / `pickClaimUserName`，副行 **`confirm_time` / `confirmTime`**。字段全集见 **[`w8t-event-claim-list-alignment.md`](./w8t-event-claim-list-alignment.md)**；认领请求见 **[`event-claim-java-syswatch.md`](./event-claim-java-syswatch.md)**。
 
 ---
 
@@ -82,7 +82,9 @@ WatchAlert（Go）历史接口多为 **camelCase**；Java 侧若使用 **snake_c
 |----|------|
 | 规则 | **`ruleName`**（勿用 `title` 当规则名） |
 | 数据源 | **`datasourceName`**（空则回退 `datasourceType` / `datasourceId`） |
-| 首次触发 | **`firstTriggerTime`**（Unix 秒，优先于 `first_trigger_time`） |
+| 首次触发 | **`first_trigger_time`**（Unix 秒，优先），再 `firstTriggerTime` / `FirstTriggerTime`；见 `pickFirstTriggerTime` |
+| 恢复时间 | 见 `pickRecoverTime`：优先 **`recoverTime`** / `recover_time`，及 `recoveryTime`、`resolvedAt`、`closeTime`、`recoverAt`、`endsAt` 等（Unix 秒/毫秒或 ISO，与 `formatEventTs` 一致） |
+| 认领人 / 时间 | 与活跃列表相同：`pickClaimUserName`、`pickConfirmDisplay`、`formatConfirmTimeCell`（见 [`w8t-event-claim-list-alignment.md`](./w8t-event-claim-list-alignment.md)） |
 
 ---
 
@@ -154,7 +156,9 @@ WatchAlert（Go）历史接口多为 **camelCase**；Java 侧若使用 **snake_c
 | POST | `/api/w8t/silence/silenceUpdate` |
 | POST | `/api/w8t/silence/silenceDelete` |
 
-请求体以 **camelCase** 为主（与表单页一致）；Java 实现请以现网 WatchAlert 或抓包为准对齐字段。
+请求体以 **camelCase** 为主（与表单页一致）；**`silenceCreate` / `silenceUpdate` / `silenceDelete`** 请求体中前端会同时带上 **`faultCenterId` 与 `fault_center_id`**（与事件接口双写策略一致）。
+
+**活跃告警行内「静默」**：无新接口，仍走 **`silenceCreate`**；字段、标签推导与联调建议见专篇 **[`event-silence-from-active-backend.md`](./event-silence-from-active-backend.md)**。
 
 ---
 
@@ -188,5 +192,5 @@ Go 版对部分接口未挂 `Permission`；Java 网关建议在 **路径级** �
 |------|------|
 | 事件 / 静默 / 规则 API | `src/api/w8tAlert.js` |
 | 故障中心 API | `src/api/faultcenter.js` |
-| 活跃告警页 | `src/views/alert-mgmt/EventCurrent.vue` |
+| 活跃告警页（含行内静默） | `src/views/alert-mgmt/EventCurrent.vue` |
 | 历史告警页 | `src/views/alert-mgmt/EventHistory.vue` |

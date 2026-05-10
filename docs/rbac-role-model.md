@@ -67,7 +67,7 @@
 - **路由 `meta.access`**：`user` | `admin` | `root`，匹配链上取最高要求，与用户 `accessLevel` 比较，不足则进 `/forbidden`。  
 - **侧栏**：`user` 只见监控面板；`admin`/`root` 见运维菜单；**仅 root** 见「人员管理」。  
 - **`useFaultCenterPerm` / `useNoticePerm` / `useNoticeTmplPerm`**：在非 relax、非 legacy 时，**admin/root** 按钮全放行；**user** 若在将来放开部分页，则偏只读（当前路由下 user 进不了这些页）。  
-- **`RoleAdmin` 本地权限字典**已置空；若后端仍提供 `GET /api/rbac/permissions`，可继续用于编辑角色附带串（与菜单解耦）。  
+- **`RoleAdmin`（角色与权限）**：只读展示角色与三档说明，**不保存模块权限**；用户绑定角色在「用户管理」。若后端仍提供 `GET /api/rbac/permissions` 或 JWT 内细粒度串，由网关/中间件使用，与前端菜单解耦。  
 
 ## 5. 新模块接入约定
 

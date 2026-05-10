@@ -18,7 +18,6 @@
                 class="nod-input"
                 maxlength="200"
                 placeholder="模版名称"
-                :disabled="variant === 'update'"
                 @keydown="onNameKeydown"
                 @input="onNameInput"
               >

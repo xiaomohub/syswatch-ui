@@ -35,10 +35,11 @@ export function formatEventTs(v) {
  */
 export function pickFirstTriggerTime(row) {
   if (!row || typeof row !== 'object') return null
+  /** Java SysWatch / 对接说明：优先数字 `first_trigger_time`（Unix 秒），再字符串 `firstTriggerTime` / `FirstTriggerTime` */
   const keys = [
+    'first_trigger_time',
     'firstTriggerTime',
     'FirstTriggerTime',
-    'first_trigger_time',
     'starts_at',
     'startsAt',
     'start_time',
@@ -49,6 +50,38 @@ export function pickFirstTriggerTime(row) {
     'triggerTime',
     'firstAt',
     'first_at'
+  ]
+  for (const k of keys) {
+    if (k in row && row[k] != null && row[k] !== '') return row[k]
+  }
+  return null
+}
+
+/**
+ * 历史告警 `hisEvent` 列表：恢复/结束时间（Go/Java 键名不一，多候选）
+ * @param {Record<string, unknown>} row
+ * @returns {unknown}
+ */
+export function pickRecoverTime(row) {
+  if (!row || typeof row !== 'object') return null
+  const keys = [
+    'recoverTime',
+    'RecoverTime',
+    'recover_time',
+    'recoveryTime',
+    'recovery_time',
+    'lastRecoverTime',
+    'last_recover_time',
+    'resolvedAt',
+    'resolved_at',
+    'resolvedTime',
+    'resolved_time',
+    'closeTime',
+    'close_time',
+    'recoverAt',
+    'recover_at',
+    'endsAt',
+    'ends_at'
   ]
   for (const k of keys) {
     if (k in row && row[k] != null && row[k] !== '') return row[k]
@@ -90,6 +123,7 @@ export function pickClaimUserName(row) {
   return String(
     row.duty_user_name ??
       row.DutyUserName ??
+      row.dutyUserName ??
       row.claimUser ??
       row.claim_user ??
       row.confirmUser ??
@@ -158,4 +192,42 @@ export function pickConfirmDisplay(row) {
     return { isOk: true, confirmUsername: userFlat }
   }
   return { isOk: false, confirmUsername: '' }
+}
+
+/**
+ * 认领时间：`confirm_time`（Unix 秒）或 `confirmTime`（北京时间字符串等）
+ * @param {Record<string, unknown>} row
+ */
+export function formatConfirmTimeCell(row) {
+  if (!row || typeof row !== 'object') return '—'
+  const ct = row.confirm_time
+  if (ct != null && ct !== '') {
+    const formatted = formatEventTs(ct)
+    if (formatted !== '—') return formatted
+  }
+  const s = row.confirmTime ?? row.ConfirmTime
+  if (s != null && String(s).trim()) return String(s).trim()
+  return '—'
+}
+
+/**
+ * 列表行指纹 / Redis field（与 `event_id` 同义时后端可能只回其中一种）
+ * @param {Record<string, unknown>} row
+ */
+export function pickEventFingerprint(row) {
+  if (!row || typeof row !== 'object') return ''
+  const v = row.fingerprint ?? row._redisField ?? row.event_id ?? row.eventId
+  return String(v ?? '').trim()
+}
+
+/**
+ * 历史列表「认领人」列：优先顶层认领人字段，再回退 `pickConfirmDisplay`（与活跃列表一致）
+ * @param {Record<string, unknown>} row
+ */
+export function formatHisEventClaimCell(row) {
+  const direct = pickClaimUserName(row)
+  if (direct) return direct
+  const { isOk, confirmUsername } = pickConfirmDisplay(row)
+  if (!isOk) return '—'
+  return confirmUsername || '已认领'
 }

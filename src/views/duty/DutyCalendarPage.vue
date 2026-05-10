@@ -46,7 +46,7 @@
         <div class="cal-legend">
           <span class="lg-item"><i class="lg-dot published" />已发布</span>
           <span class="lg-item"><i class="lg-dot selected" />将发布</span>
-          <span class="lg-item muted">周末浅色，可点选覆盖</span>
+          <span class="lg-item muted">周末为浅色底，与工作日一样展示已发布人员；可点选覆盖</span>
         </div>
         <div class="month-cal" role="grid" :aria-label="`${calendarMonthLabel}排班`">
           <div class="weekday-row" role="row">
@@ -64,9 +64,20 @@
                 role="gridcell"
                 :aria-selected="c.inMonth ? !!selectedDays[c.key] : undefined"
                 :aria-label="cellAria(c)"
+                :title="cellHoverTitle(c)"
                 @click="onCellClick(c)"
               >
                 <span class="cal-day">{{ c.day }}</span>
+                <span
+                  v-if="c.inMonth && publishedStaffByDay[c.key]?.length"
+                  class="cal-staff"
+                  aria-hidden="true"
+                >{{ publishedStaffByDay[c.key].join('、') }}</span>
+                <span
+                  v-else-if="c.inMonth && publishedDayKeys.has(c.key)"
+                  class="cal-staff cal-staff--empty"
+                  aria-hidden="true"
+                >人员未返回</span>
                 <span v-if="c.inMonth && (publishedDayKeys.has(c.key) || selectedDays[c.key])" class="cal-dots" aria-hidden="true">
                   <i v-if="publishedDayKeys.has(c.key)" class="cal-dot published" />
                   <i v-if="selectedDays[c.key]" class="cal-dot selected" />
@@ -157,7 +168,7 @@
       <div class="staff-block">
         <div class="staff-head">
           <span class="staff-label">值班人员 <span class="req">*</span></span>
-          <span class="muted">已选 {{ staffKeys.length }} / {{ MAX_DUTY_STAFF }}</span>
+          <span class="muted">已选 {{ staffKeys.length }} 人</span>
         </div>
         <div ref="staffMsRoot" class="staff-ms">
           <div class="staff-ms-field" :class="{ open: staffPanelOpen }" @click="focusStaffInput">
@@ -172,7 +183,7 @@
                 type="text"
                 class="staff-ms-input fc-input"
                 autocomplete="off"
-                :placeholder="staffKeys.length ? '搜索添加…' : '搜索用户名，下拉多选（最多 3 人）'"
+                :placeholder="staffKeys.length ? '搜索添加…' : '搜索用户名，下拉多选'"
                 @focus="staffPanelOpen = true"
                 @keydown.escape.stop.prevent="staffPanelOpen = false"
               />
@@ -192,8 +203,7 @@
               :aria-selected="staffKeys.includes(userRowKey(u))"
               class="staff-ms-opt"
               :class="{
-                'is-selected': staffKeys.includes(userRowKey(u)),
-                'is-disabled': !staffKeys.includes(userRowKey(u)) && staffKeys.length >= MAX_DUTY_STAFF
+                'is-selected': staffKeys.includes(userRowKey(u))
               }"
               @mousedown.prevent="pickStaffUser(u)"
             >
@@ -229,7 +239,6 @@ import {
 } from './dutyUtils'
 import '../faultcenter/faultCenterCommon.css'
 
-const MAX_DUTY_STAFF = 3
 const WHEEL_ITEM_PX = 36
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 const hourOptions = Array.from({ length: 24 }, (_, i) => i)
@@ -333,6 +342,50 @@ const publishedDayKeys = computed(() => {
   return set
 })
 
+/** @param {unknown} users `calendarSearch` 的 users：扁平或分组嵌套 */
+function dutyItemUserDisplayNames(users) {
+  if (!users || !Array.isArray(users)) return []
+  /** @param {unknown} u */
+  function pushUser(u) {
+    if (!u || typeof u !== 'object') return
+    const o = /** @type {Record<string, unknown>} */ (u)
+    const name = o.username ?? o.userName ?? o.userid ?? o.userId
+    if (name != null && String(name).trim()) out.push(String(name).trim())
+  }
+  const out = []
+  const first = users[0]
+  if (Array.isArray(first)) {
+    for (const group of users) {
+      if (!Array.isArray(group)) continue
+      for (const u of group) pushUser(u)
+    }
+  } else {
+    for (const u of users) pushUser(u)
+  }
+  return out
+}
+
+/** 当月各日已发布值班人展示名（去重保序） */
+const publishedStaffByDay = computed(() => {
+  /** @type {Record<string, string[]>} */
+  const map = {}
+  const { year, month } = parseMonthInput(monthInput.value)
+  if (!year || !month) return map
+  for (const item of dutyData.value) {
+    const k = timeToLocalDayKey(item.time)
+    if (!k) continue
+    const parts = k.split('-').map((x) => parseInt(x, 10))
+    if (parts[0] !== year || parts[1] !== month) continue
+    const names = dutyItemUserDisplayNames(item.users)
+    if (!names.length) continue
+    if (!map[k]) map[k] = []
+    for (const n of names) {
+      if (!map[k].includes(n)) map[k].push(n)
+    }
+  }
+  return map
+})
+
 const dutyTimeSummary = computed(() => {
   return `${pad2(startHour.value)}:${pad2(startMinute.value)} — ${pad2(endHour.value)}:${pad2(endMinute.value)}`
 })
@@ -419,8 +472,20 @@ function cellClass(c) {
 function cellAria(c) {
   if (!c.inMonth) return `非本月 ${c.day} 日`
   const sel = selectedDays.value[c.key] ? '已选' : '未选'
-  const pub = publishedDayKeys.value.has(c.key) ? '，已有排班' : ''
+  const staff = publishedStaffByDay.value[c.key]
+  let pub = ''
+  if (staff?.length) pub = `，值班 ${staff.join('、')}`
+  else if (publishedDayKeys.value.has(c.key)) pub = '，已有排班（人员未返回）'
   return `${c.day} 日，${sel}${pub}`
+}
+
+/** @param {{ key: string, day: number, inMonth: boolean, isWeekend: boolean }} c */
+function cellHoverTitle(c) {
+  if (!c.inMonth) return ''
+  const staff = publishedStaffByDay.value[c.key]
+  if (staff?.length) return `值班：${staff.join('、')}`
+  if (publishedDayKeys.value.has(c.key)) return '已有排班，接口未返回值班人员字段'
+  return ''
 }
 
 function staffDisplayName(key) {
@@ -443,7 +508,6 @@ function pickStaffUser(u) {
     staffKeys.value = cur.filter((x) => x !== k)
     return
   }
-  if (cur.length >= MAX_DUTY_STAFF) return
   staffKeys.value = [...cur, k]
 }
 
@@ -576,7 +640,7 @@ async function publish() {
   }
   const staff = selectedStaffObjects()
   if (staff.length === 0) {
-    publishError.value = '请至少选择 1 名值班人员（最多 3 名）。'
+    publishError.value = '请至少选择 1 名值班人员。'
     return
   }
   const keys = Object.keys(selectedDays.value).filter((k) => selectedDays.value[k])
@@ -771,13 +835,16 @@ onUnmounted(() => {
 
 .cal-cell {
   position: relative;
-  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 92px;
   border: none;
   border-right: 1px solid var(--border-default);
   border-bottom: 1px solid var(--border-default);
   background: transparent;
   cursor: pointer;
-  padding: 6px 4px 10px;
+  padding: 6px 4px 12px;
   margin: 0;
   font: inherit;
   color: var(--text-primary);
@@ -806,10 +873,45 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.03);
 }
 
+/* 周末浅色底上仍保证姓名清晰可读（与工作日一致展示接口返回的值班人） */
+.cal-cell.has-published .cal-staff {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.cal-cell.has-published .cal-staff--empty {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .cal-day {
   display: block;
   font-size: 14px;
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.cal-staff {
+  flex: 1 1 auto;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 500;
+  text-align: center;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cal-staff--empty {
+  -webkit-line-clamp: 2;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .cal-dots {

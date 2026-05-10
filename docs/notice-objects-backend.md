@@ -34,6 +34,7 @@ JWT 权限为 **`"METHOD 完整path"`** 字符串集合；前端匹配逻辑见 
 | 更新 | POST | `/api/w8t/notice/noticeUpdate` | 需权限 |
 | 删除 | POST | `/api/w8t/notice/noticeDelete` | 需权限 |
 | 通知记录列表 | GET | `/api/w8t/notice/noticeRecordList` | 需权限 |
+| 通知记录告警详情 | GET | `/api/w8t/notice/noticeRecordAlarmDetail` | 需权限；契约见 **`docs/notice-record-alarm-detail-api.md`** |
 | 通知统计 | GET | `/api/w8t/notice/noticeRecordMetric` | **无** Path 权限，登录即可（与 Go 一致） |
 | 测试发送 | POST | `/api/w8t/notice/noticeTest` | **无** Path 权限，登录即可 |
 
@@ -51,6 +52,7 @@ JWT 权限为 **`"METHOD 完整path"`** 字符串集合；前端匹配逻辑见 
 | POST | `/notice/noticeUpdate` | 更新 |
 | POST | `/notice/noticeDelete` | 删除 |
 | GET | `/notice/noticeRecordList` | 通知发送记录（分页） |
+| GET | `/notice/noticeRecordAlarmDetail` | 按 `eventId` 拉完整事件（与列表摘要对照，见专项文档） |
 | GET | `/notice/noticeRecordMetric` | 近 7 日按等级统计 |
 | POST | `/notice/noticeTest` | 按渠道试发 |
 
@@ -219,7 +221,8 @@ JWT 权限为 **`"METHOD 完整path"`** 字符串集合；前端匹配逻辑见 
 | `nObj` | 通知对象标识（常为 uuid 或名称） |
 | `severity` | P0/P1/P2 |
 | `status` | 数值；**0 成功** |
-| `alarmMsg` | 告警摘要 |
+| `alarmMsg` | 告警说明（常称「摘要」）；是否与全文一致、是否另存详细字段，见 **`docs/notice-record-alarm-detail.md`** |
+| `faultCenterId` | 可选；若有，前端请求 **`noticeRecordAlarmDetail`** 时优先传入；完整契约见 **`docs/notice-record-alarm-detail-api.md`** |
 | `errMsg` | 失败时的错误信息 |
 
 ---
@@ -257,3 +260,4 @@ JWT 权限为 **`"METHOD 完整path"`** 字符串集合；前端匹配逻辑见 
 | 路由归一化 | `src/views/notice-objects/noticeObjectFormUtils.js` |
 | 通知类型枚举 | `src/views/notice-objects/noticeTypes.js` |
 | 记录与统计页 | `src/views/notice/NoticeRecords.vue`、`NoticeMetrics.vue` |
+| 记录告警详情 API 说明 | `docs/notice-record-alarm-detail-api.md` |

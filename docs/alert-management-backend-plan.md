@@ -223,6 +223,7 @@
 | 文档 | 用途 |
 |------|------|
 | 本文 `alert-management-backend-plan.md` | **后端实施路线 + 检查单 + 与前端映射**。 |
+| `event-silence-from-active-backend.md` | 活跃列表「静默」：`silenceCreate` 契约、labels 推导、`curEvent` 建议字段。 |
 | `fault-center-backend.md` | 故障中心专用：缓存 key、消费者、SLO 等。 |
 | `faultcenter-api.md` | 故障中心前端对接。 |
 | （可选）`alert-management-frontend.md` | Vue 路由、页面、权限、字段说明专篇；可与 §8 合并维护。 |

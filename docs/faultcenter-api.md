@@ -47,4 +47,4 @@
 **告警管理（规则组 / 规则 / 事件 / 静默）后端实施路线与接口检查单**：[`alert-management-backend-plan.md`](./alert-management-backend-plan.md)。
 
 **Java（Spring Boot）对接 WatchAlert `/api/w8t`（事件/静默/故障中心契约、命名与双写说明）**：[`w8t-java-backend.md`](./w8t-java-backend.md)。  
-**仅活跃告警 — 评论 / 认领 / 删除**：[`event-actions-java-backend.md`](./event-actions-java-backend.md)。规则域详见 [`alert-rules-java-backend.md`](./alert-rules-java-backend.md)。
+**仅活跃告警 — 评论 / 认领 / 删除**：[`event-actions-java-backend.md`](./event-actions-java-backend.md)。**Java 认领与列表字段对齐**：[`event-claim-java-syswatch.md`](./event-claim-java-syswatch.md)、[`w8t-event-claim-list-alignment.md`](./w8t-event-claim-list-alignment.md)。规则域详见 [`alert-rules-java-backend.md`](./alert-rules-java-backend.md)。

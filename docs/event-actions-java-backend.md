@@ -3,6 +3,8 @@
 本文档**仅**描述「活跃告警」页上的 **评论**、**认领**、**删除** 四条接口，与前端 `src/api/w8tAlert.js`、`EventCurrent.vue` 实际请求一致。  
 完整 `/api/w8t` 说明见 [`w8t-java-backend.md`](./w8t-java-backend.md)。
 
+**Java SysWatch 认领（JWT、`action: "claim"`、Redis 字段）** 详见 **[`event-claim-java-syswatch.md`](./event-claim-java-syswatch.md)**；**活跃 / 历史列表列与 JSON 键对齐** 见 **[`w8t-event-claim-list-alignment.md`](./w8t-event-claim-list-alignment.md)**。
+
 ---
 
 ## 1. 通用约定
@@ -62,7 +64,7 @@ Java 建议：`@JsonAlias` 同时接收两套键名，或网关统一映射；**
 }
 ```
 
-**`GET /api/w8t/event/curEvent` 列表「认领」列**：前端会读顶层 **`confirmState === 1`**（数字）或嵌套 `confirmState`，以及 **`duty_user_name` / `claimUser` / `confirm_user` / `confirmUser`** 等（见 `src/utils/w8tEventDisplay.js`）。若列表仍无认领人，请核对 Redis 内事件 JSON 是否写入上述键名且请求已带 JWT。
+**`GET /api/w8t/event/curEvent` 列表**：指纹列用 **`pickEventFingerprint`**（`fingerprint` / `_redisField` / `event_id`）；「首次触发」**优先** `first_trigger_time`（Unix 秒）；「认领」列用 **`pickConfirmDisplay` + `pickClaimUserName`**，副行展示 **`confirm_time` / `confirmTime`**（见 `w8tEventDisplay.js` 与 [`w8t-event-claim-list-alignment.md`](./w8t-event-claim-list-alignment.md)）。若仍无认领人，请核对 Redis JSON 与 JWT。
 
 ---
 

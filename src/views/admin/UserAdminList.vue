@@ -46,7 +46,7 @@
                 type="button"
                 class="link-btn danger"
                 :disabled="isCurrentUser(u)"
-                @click="confirmDelete(u)"
+                @click="removeUser(u)"
               >
                 删除
               </button>
@@ -315,15 +315,15 @@ async function saveEditor() {
   }
 }
 
-function confirmDelete(u) {
+async function removeUser(u) {
   if (isCurrentUser(u)) return
-  const ok = window.confirm(`确定删除用户「${u.username}」？此操作不可恢复。`)
-  if (!ok) return
-  deleteUser(u.id)
-    .then(() => loadUsers())
-    .catch((e) => {
-      window.alert(e.response?.data?.message || e.message || '删除失败')
-    })
+  listError.value = ''
+  try {
+    await deleteUser(u.id)
+    await loadUsers()
+  } catch (e) {
+    listError.value = e.response?.data?.message || e.message || '删除失败'
+  }
 }
 
 onMounted(() => {

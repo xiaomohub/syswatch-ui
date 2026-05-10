@@ -135,7 +135,12 @@
             <button type="button" class="nod-x" aria-label="关闭" @click="historyOpen = false">×</button>
           </header>
           <div class="hist-body">
-            <NoticeRecords v-if="historyUuid" embedded :notice-object-id="historyUuid" />
+            <NoticeRecords
+              v-if="historyUuid"
+              embedded
+              :notice-object-id="historyUuid"
+              :notice-object-name="historyTitle"
+            />
           </div>
         </aside>
       </div>
@@ -580,10 +585,11 @@ onUnmounted(() => {
 .hist-body {
   flex: 1;
   overflow: auto;
-  padding: 0 12px 16px;
+  padding: 0 16px 20px;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 48px);
 }
 .nod-panel.hist {
-  width: min(960px, 100vw);
+  width: min(1080px, 100vw);
 }
 </style>
 

@@ -40,16 +40,20 @@
           <tr v-if="rows.length === 0">
             <td colspan="8" class="am-empty">{{ effectiveFc ? '暂无活跃告警' : '—' }}</td>
           </tr>
-          <tr v-for="row in rows" :key="row.fingerprint">
-            <td class="mono">{{ row.fingerprint }}</td>
+          <tr v-for="(row, ri) in rows" :key="pickEventFingerprint(row) || `row-${ri}`">
+            <td class="mono">{{ pickEventFingerprint(row) || '—' }}</td>
             <td>{{ row.rule_name || row.ruleName || '—' }}</td>
             <td>{{ row.severity || '—' }}</td>
             <td>{{ row.status || '—' }}</td>
             <td><code>{{ row.faultCenterId || '—' }}</code></td>
             <td>{{ formatEventTs(pickFirstTriggerTime(row)) }}</td>
-            <td class="small">{{ claimCell(row) }}</td>
+            <td class="small claim-stack">
+              <div>{{ claimCell(row) }}</div>
+              <div v-if="claimTimeLine(row)" class="claim-time">{{ claimTimeLine(row) }}</div>
+            </td>
             <td class="tc">
               <button type="button" class="link" @click="openComments(row)">评论</button>
+              <button type="button" class="link" @click="openSilence(row)">静默</button>
               <button type="button" class="link" @click="claim(row)">认领</button>
               <button type="button" class="link danger" @click="removeEv(row)">删除</button>
             </td>
@@ -64,6 +68,71 @@
         <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="silenceOpen" class="modal-overlay" @click.self="silenceOpen = false">
+        <div class="modal-box wide silence-modal">
+          <h3>告警静默</h3>
+          <p class="silence-meta">
+            指纹 <code class="fp">{{ silenceRow ? pickEventFingerprint(silenceRow) : '' }}</code>
+            <span v-if="silenceRow?.rule_name || silenceRow?.ruleName" class="muted">
+              · 规则 {{ silenceRow?.rule_name || silenceRow?.ruleName }}
+            </span>
+          </p>
+          <p v-if="silenceLabelHint" class="silence-warn">{{ silenceLabelHint }}</p>
+
+          <label class="field">
+            <span>名称 <span class="req">*</span></span>
+            <input v-model="silenceName" class="am-input" type="text" placeholder="静默策略名称" />
+          </label>
+
+          <div class="field">
+            <span>标签匹配 <span class="req">*</span></span>
+            <p class="muted small silence-tip">多条为「且」关系；若事件未带 labels，请按后端告警标签手动核对（常用 <code>alertname</code>）。</p>
+            <div v-for="(lr, i) in silenceLabelRows" :key="i" class="label-matcher-row">
+              <input v-model="lr.key" class="am-input sm key" type="text" placeholder="键" aria-label="标签键" />
+              <select v-model="lr.operator" class="am-input sm op" aria-label="运算符">
+                <option v-for="op in SILENCE_OPERATORS" :key="op" :value="op">{{ op }}</option>
+              </select>
+              <input v-model="lr.value" class="am-input sm val" type="text" placeholder="值" aria-label="标签值" />
+              <button type="button" class="am-btn sm ghost" @click="removeSilenceLabelRow(i)">删除</button>
+            </div>
+            <button type="button" class="am-btn sm" @click="addSilenceLabelRow">添加条件</button>
+          </div>
+
+          <div class="field">
+            <span>快捷时长（从当前时刻起）</span>
+            <div class="preset-chips">
+              <button
+                v-for="p in SILENCE_PRESETS"
+                :key="p.h"
+                type="button"
+                class="chip"
+                @click="applySilencePresetHours(p.h)"
+              >
+                {{ p.label }}
+              </button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>开始时间 <span class="req">*</span></span>
+            <input v-model="silenceStartsLocal" class="am-input" type="datetime-local" />
+          </label>
+          <label class="field">
+            <span>结束时间 <span class="req">*</span></span>
+            <input v-model="silenceEndsLocal" class="am-input" type="datetime-local" />
+            <span class="muted small">可配合日历控件选择更长区间；结束须晚于开始。</span>
+          </label>
+
+          <p v-if="silenceErr" class="am-err">{{ silenceErr }}</p>
+          <div class="modal-actions">
+            <button type="button" class="am-btn" :disabled="silenceSaving" @click="silenceOpen = false">取消</button>
+            <button type="button" class="am-btn primary" :disabled="silenceSaving" @click="submitSilence">创建静默</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div v-if="commentOpen" class="modal-overlay" @click.self="commentOpen = false">
@@ -103,15 +172,30 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
-import { formatEventTs, pickFirstTriggerTime, pickConfirmDisplay } from '@/utils/w8tEventDisplay'
+import {
+  formatEventTs,
+  pickFirstTriggerTime,
+  pickConfirmDisplay,
+  formatConfirmTimeCell,
+  pickEventFingerprint
+} from '@/utils/w8tEventDisplay'
 import {
   curEventList,
   eventProcess,
   eventDelete,
   eventListComments,
   eventAddComment,
-  eventDeleteComment
+  eventDeleteComment,
+  silenceCreate
 } from '@/api/w8tAlert'
+import {
+  SILENCE_OPERATORS,
+  datetimeLocalToUnix,
+  unixToDatetimeLocal,
+  labelsForApi,
+  emptySilenceLabel,
+  eventRowToSilenceLabelRows
+} from './silenceUtils'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
 
 const props = defineProps({
@@ -152,6 +236,40 @@ const status = ref('')
 const scopeDays = ref(7)
 const sortOrder = ref('descend')
 
+/** 快捷静默：小时数 → 展示文案 */
+const SILENCE_PRESETS = [
+  { h: 1, label: '1 小时' },
+  { h: 2, label: '2 小时' },
+  { h: 4, label: '4 小时' },
+  { h: 8, label: '8 小时' },
+  { h: 12, label: '12 小时' },
+  { h: 24, label: '1 天' },
+  { h: 48, label: '2 天' },
+  { h: 72, label: '3 天' },
+  { h: 168, label: '7 天' }
+]
+
+const silenceOpen = ref(false)
+/** @type {import('vue').Ref<Record<string, unknown> | null>} */
+const silenceRow = ref(null)
+const silenceName = ref('')
+const silenceStartsLocal = ref('')
+const silenceEndsLocal = ref('')
+const silenceLabelRows = ref([emptySilenceLabel()])
+const silenceErr = ref('')
+const silenceSaving = ref(false)
+
+const silenceLabelHint = computed(() => {
+  const row = silenceRow.value
+  if (!row || !silenceOpen.value) return ''
+  const derived = eventRowToSilenceLabelRows(row)
+  if (derived.length) return ''
+  if (!String(row.rule_name ?? row.ruleName ?? '').trim()) {
+    return '该事件未返回 labels 与规则名，请手动填写标签条件，否则静默可能无法命中告警。'
+  }
+  return ''
+})
+
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 /** @param {Record<string, unknown>} row */
@@ -159,6 +277,12 @@ function claimCell(row) {
   const { isOk, confirmUsername } = pickConfirmDisplay(row)
   if (!isOk) return '—'
   return confirmUsername || '已认领'
+}
+
+/** @param {Record<string, unknown>} row */
+function claimTimeLine(row) {
+  const t = formatConfirmTimeCell(row)
+  return t === '—' ? '' : t
 }
 
 function syncQueryToRoute() {
@@ -244,9 +368,10 @@ function goPage(p) {
 
 async function claim(row) {
   const fc = faultCenterIdForRow(row)
-  if (!fc || !row.fingerprint) return
+  const fp = pickEventFingerprint(row)
+  if (!fc || !fp) return
   try {
-    await eventProcess({ faultCenterId: fc, fingerprints: [row.fingerprint] })
+    await eventProcess({ faultCenterId: fc, fingerprints: [fp] })
     await load()
   } catch (e) {
     pageError.value = e?.message || '认领失败'
@@ -255,10 +380,11 @@ async function claim(row) {
 
 async function removeEv(row) {
   const fc = faultCenterIdForRow(row)
-  if (!fc || !row.fingerprint) return
+  const fp = pickEventFingerprint(row)
+  if (!fc || !fp) return
   if (!confirm('从 Redis 删除该活跃事件？')) return
   try {
-    await eventDelete({ faultCenterId: fc, fingerprints: [row.fingerprint] })
+    await eventDelete({ faultCenterId: fc, fingerprints: [fp] })
     await load()
   } catch (e) {
     pageError.value = e?.message || '删除失败'
@@ -276,7 +402,8 @@ const commentErr = ref('')
 const commentSaving = ref(false)
 
 async function openComments(row) {
-  commentFp.value = row.fingerprint
+  const fp = pickEventFingerprint(row)
+  commentFp.value = fp
   commentFc.value = faultCenterIdForRow(row)
   newComment.value = ''
   commentErr.value = ''
@@ -287,7 +414,7 @@ async function openComments(row) {
   try {
     const data = await eventListComments({
       tenantId: tenantId || undefined,
-      fingerprint: row.fingerprint,
+      fingerprint: fp,
       faultCenterId: commentFc.value || undefined
     })
     comments.value = Array.isArray(data) ? data : data?.list || data?.records || []
@@ -325,6 +452,89 @@ async function delComment(commentId) {
     await openComments({ fingerprint: commentFp.value })
   } catch (e) {
     commentErr.value = e?.message || '删除失败'
+  }
+}
+
+/** @param {Record<string, unknown>} row */
+function openSilence(row) {
+  const fc = faultCenterIdForRow(row)
+  const fp = pickEventFingerprint(row)
+  if (!fc || !fp) return
+  silenceRow.value = row
+  silenceErr.value = ''
+  const now = Math.floor(Date.now() / 1000)
+  silenceStartsLocal.value = unixToDatetimeLocal(now)
+  silenceEndsLocal.value = unixToDatetimeLocal(now + 3600)
+  const derived = eventRowToSilenceLabelRows(row)
+  silenceLabelRows.value = derived.length ? derived.map((x) => ({ ...x })) : [emptySilenceLabel()]
+  const rule = String(row.rule_name ?? row.ruleName ?? '').trim()
+  const fpShort = pickEventFingerprint(row).slice(0, 10)
+  silenceName.value = rule ? `静默 · ${rule}` : `静默 · ${fpShort || '告警'}`
+  silenceOpen.value = true
+}
+
+/** @param {number} h */
+function applySilencePresetHours(h) {
+  const now = Math.floor(Date.now() / 1000)
+  silenceStartsLocal.value = unixToDatetimeLocal(now)
+  silenceEndsLocal.value = unixToDatetimeLocal(now + h * 3600)
+}
+
+function addSilenceLabelRow() {
+  silenceLabelRows.value = [...silenceLabelRows.value, emptySilenceLabel()]
+}
+
+/** @param {number} i */
+function removeSilenceLabelRow(i) {
+  const next = silenceLabelRows.value.filter((_, j) => j !== i)
+  silenceLabelRows.value = next.length ? next : [emptySilenceLabel()]
+}
+
+async function submitSilence() {
+  const row = silenceRow.value
+  if (!row) return
+  const fc = faultCenterIdForRow(row)
+  silenceErr.value = ''
+  const name = silenceName.value?.trim()
+  if (!name) {
+    silenceErr.value = '请填写名称'
+    return
+  }
+  const labels = labelsForApi(silenceLabelRows.value)
+  if (!labels.length) {
+    silenceErr.value = '请至少填写一条有效的标签条件（键不能为空）'
+    return
+  }
+  const startsAt = datetimeLocalToUnix(silenceStartsLocal.value)
+  const endsAt = datetimeLocalToUnix(silenceEndsLocal.value)
+  if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt)) {
+    silenceErr.value = '请填写有效的开始、结束时间'
+    return
+  }
+  if (endsAt <= startsAt) {
+    silenceErr.value = '结束时间必须晚于开始时间'
+    return
+  }
+  if (!fc) {
+    silenceErr.value = '缺少故障中心'
+    return
+  }
+  silenceSaving.value = true
+  try {
+    await silenceCreate({
+      name,
+      labels,
+      startsAt,
+      endsAt,
+      faultCenterId: fc,
+      comment: `自活跃告警创建 · fp=${pickEventFingerprint(row)}`
+    })
+    silenceOpen.value = false
+    await load()
+  } catch (e) {
+    silenceErr.value = e?.message || e?.response?.data?.msg || '创建静默失败'
+  } finally {
+    silenceSaving.value = false
   }
 }
 
@@ -402,4 +612,33 @@ async function delComment(commentId) {
   font-family: inherit;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.claim-stack { vertical-align: top; line-height: 1.35; }
+.claim-time { font-size: 11px; color: #64748b; margin-top: 2px; }
+.silence-modal { max-width: 560px; }
+.silence-meta { margin: 0 0 12px; font-size: 13px; line-height: 1.5; }
+.silence-warn { margin: 0 0 12px; font-size: 13px; color: #b45309; }
+.silence-tip { margin: 0 0 8px; }
+.preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: #f8fafc;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chip:hover { background: #e2e8f0; }
+.label-matcher-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.label-matcher-row .key { flex: 1 1 120px; min-width: 100px; }
+.label-matcher-row .op { flex: 0 0 72px; }
+.label-matcher-row .val { flex: 1 1 140px; min-width: 100px; }
+.am-btn.ghost { background: #f8fafc; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 13px; }
+.req { color: #b91c1c; }
 </style>

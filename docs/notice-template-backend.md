@@ -177,7 +177,7 @@
 业务建议：
 
 - **`noticeType` 创建后不可改**：前端更新时类型控件禁用，但仍会回传原 `noticeType`；后端应以存储为准或校验与旧值一致。
-- **`name` 创建后不可改**：前端更新时名称输入框禁用；后端可忽略 body 中的改名，或仅允许运维接口改名（与产品一致即可）。
+- **`name` 可更新**：前端更新时名称可编辑，与创建时相同规则（如无空格等，见 `NoticeTemplateFormDrawer.vue`）；后端应持久化新名称，并在租户内保证名称唯一等业务约束。
 
 模版内容与 `enableFeiShuJsonCard` 切换时，应与 §4 相同规则校验 **`template` vs `templateFiring`/`templateRecover`**。
 

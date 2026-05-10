@@ -1,18 +1,8 @@
 <template>
   <div class="am-page">
     <div class="am-head">
-      <h2 class="am-title">静默</h2>
-      <template v-if="!useModalForForm">
-        <RouterLink
-          v-if="effectiveFc"
-          class="am-btn primary linkish"
-          :to="{ name: 'AlertMgmtSilenceCreate', query: { faultCenterId: effectiveFc } }"
-        >新建静默</RouterLink>
-        <button v-else type="button" class="am-btn primary" disabled title="请先选择故障中心">新建静默</button>
-      </template>
-      <template v-else>
-        <button type="button" class="am-btn primary" :disabled="!effectiveFc" @click="openModalCreate">新建静默</button>
-      </template>
+      <h2 class="am-title">告警静默</h2>
+      <button type="button" class="am-btn primary" :disabled="!effectiveFc" @click="openModalCreate">新建静默</button>
       <button type="button" class="am-btn" :disabled="loading || !effectiveFc" @click="load">刷新</button>
     </div>
 
@@ -83,13 +73,7 @@
             <td class="small">{{ row.updateBy || '—' }}</td>
             <td>{{ row.comment || '—' }}</td>
             <td class="tc">
-              <template v-if="!useModalForForm && effectiveFc">
-                <RouterLink
-                  class="link"
-                  :to="{ name: 'AlertMgmtSilenceEdit', query: { id: row.id, faultCenterId: effectiveFc } }"
-                >编辑</RouterLink>
-              </template>
-              <button v-else type="button" class="link" @click="openModalEdit(row)">编辑</button>
+              <button type="button" class="link" @click="openModalEdit(row)">编辑</button>
               <button type="button" class="link danger" @click="del(row)">删除</button>
             </td>
           </tr>
@@ -105,7 +89,7 @@
     </div>
 
     <Teleport to="body">
-      <div v-if="useModalForForm && modalOpen" class="modal-overlay" @click.self="closeModal">
+      <div v-if="modalOpen" class="modal-overlay" @click.self="closeModal">
         <div class="modal-box wide">
           <h3>{{ modalMode === 'create' ? '新建静默' : '编辑静默' }}</h3>
           <SilenceForm
@@ -147,11 +131,9 @@ defineOptions({ name: 'SilenceList' })
 
 const props = defineProps({
   faultCenterId: { type: String, default: '' },
-  /** 详情页「降噪配置」Tab：展示聚合方式并调用 faultCenterReset */
+  /** 故障中心详情「告警静默」Tab：展示聚合方式并调用 faultCenterReset */
   showAggregationBar: { type: Boolean, default: false },
-  aggregationType: { type: String, default: 'Rule' },
-  /** 嵌入故障中心详情时 true：用弹窗编辑，避免离开当前页 */
-  useModalForForm: { type: Boolean, default: false }
+  aggregationType: { type: String, default: 'Rule' }
 })
 
 const emit = defineEmits(['detail-updated'])

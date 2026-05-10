@@ -110,24 +110,6 @@ const routes = [
             meta: { title: '历史告警' }
           },
           {
-            path: 'silences/create',
-            name: 'AlertMgmtSilenceCreate',
-            component: () => import('../views/alert-mgmt/SilenceFormPage.vue'),
-            meta: { title: '新建静默' }
-          },
-          {
-            path: 'silences/edit',
-            name: 'AlertMgmtSilenceEdit',
-            component: () => import('../views/alert-mgmt/SilenceFormPage.vue'),
-            meta: { title: '编辑静默' }
-          },
-          {
-            path: 'silences',
-            name: 'AlertMgmtSilences',
-            component: () => import('../views/alert-mgmt/SilenceList.vue'),
-            meta: { title: '静默' }
-          },
-          {
             path: 'notice',
             name: 'NoticeList',
             component: () => import('../views/notice/NoticeList.vue'),
@@ -222,21 +204,13 @@ const routes = [
       },
       {
         path: 'alertconfig',
-        name: 'AlertConfig',
-        component: () => import('../views/alertconfig/alertconfig.vue'),
-        meta: { title: '告警配置', access: 'admin' }
+        redirect: '/alert-mgmt/rules',
+        meta: { access: 'admin' }
       },
       {
         path: 'alertsilence',
-        name: 'AlertSilence',
-        component: () => import('../views/alertsilence/AlertSilence.vue'),
-        meta: { title: '告警静默', access: 'admin' }
-      },
-      {
-        path: 'logquery',
-        name: 'LogQuery',
-        component: () => import('../views/logquery/LogQuery.vue'),
-        meta: { title: '日志查询', access: 'admin' }
+        redirect: '/fault-center',
+        meta: { access: 'admin' }
       },
       {
         path: 'roleadmin',

@@ -91,37 +91,26 @@
                 </span>
                 <span class="nav-text">告警规则</span>
               </router-link>
-              <router-link
-                to="/alertsilence"
-                class="nav-item nav-item-child"
-                :class="{ active: isAlertSilenceRoute }"
-              >
-                <span class="nav-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                </span>
-                <span class="nav-text">告警静默</span>
-              </router-link>
-              <router-link
-                to="/alertconfig"
-                class="nav-item nav-item-child"
-                :class="{ active: isAlertConfigRoute }"
-              >
-                <span class="nav-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v6m0 6v10"/>
-                    <path d="M21 12h-6m-6 0H1"/>
-                  </svg>
-                </span>
-                <span class="nav-text">告警配置</span>
-              </router-link>
             </div>
           </Transition>
         </div>
+
+        <router-link
+          v-if="isOps"
+          to="/fault-center"
+          class="nav-item"
+          :class="{ active: route.path.startsWith('/fault-center') }"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10"/>
+              <path d="M12 8v5"/>
+              <path d="M12 16h.01"/>
+              <path d="M22 12a10 10 0 0 0-10-10"/>
+            </svg>
+          </span>
+          <span class="nav-text">故障中心</span>
+        </router-link>
 
         <div v-if="canNoticeObjects" class="nav-collapse" aria-label="通知管理">
           <button
@@ -178,23 +167,6 @@
 
         <router-link
           v-if="isOps"
-          to="/fault-center"
-          class="nav-item"
-          :class="{ active: route.path.startsWith('/fault-center') }"
-        >
-          <span class="nav-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a10 10 0 1 0 10 10"/>
-              <path d="M12 8v5"/>
-              <path d="M12 16h.01"/>
-              <path d="M22 12a10 10 0 0 0-10-10"/>
-            </svg>
-          </span>
-          <span class="nav-text">故障中心</span>
-        </router-link>
-
-        <router-link
-          v-if="isOps"
           to="/dutyManage"
           class="nav-item"
           :class="{ active: route.path.startsWith('/dutyManage') }"
@@ -234,21 +206,6 @@
           </button>
           <Transition name="nav-collapse-h">
             <div v-show="analysisDiagNavExpanded" class="nav-collapse-body">
-              <router-link
-                to="/logquery"
-                class="nav-item nav-item-child"
-                active-class="active"
-              >
-                <span class="nav-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                  </svg>
-                </span>
-                <span class="nav-text">日志查询</span>
-              </router-link>
               <router-link
                 to="/aiops-rca"
                 class="nav-item nav-item-child"
@@ -418,16 +375,9 @@ watch(
   { immediate: true }
 )
 
-const isAlertMgmtSection = computed(
-  () =>
-    route.path.startsWith('/alert-mgmt') ||
-    route.path.startsWith('/alertsilence') ||
-    route.path.startsWith('/alertconfig')
-)
+const isAlertMgmtSection = computed(() => route.path.startsWith('/alert-mgmt'))
 /** 侧栏「告警规则」：规则组 + 规则（分栏），含新建/导入/编辑子路由 */
 const isAlertRulesNavRoute = computed(() => route.path.startsWith('/alert-mgmt/rules'))
-const isAlertSilenceRoute = computed(() => route.path.startsWith('/alertsilence'))
-const isAlertConfigRoute = computed(() => route.path.startsWith('/alertconfig'))
 const alertNavExpanded = ref(false)
 
 watch(
@@ -449,9 +399,7 @@ watch(
   { immediate: true }
 )
 
-const isAnalysisDiagSection = computed(
-  () => route.path.startsWith('/logquery') || route.path.startsWith('/aiops-rca')
-)
+const isAnalysisDiagSection = computed(() => route.path.startsWith('/aiops-rca'))
 const analysisDiagNavExpanded = ref(false)
 
 watch(
@@ -472,10 +420,7 @@ const pageTitle = computed(() => {
     '/fault-center': '故障中心',
     '/dutyManage': '值班中心',
     '/aiops-rca': '智能诊断',
-    '/alertsilence': '告警静默',
     '/alertinhibit': '告警抑制',
-    '/alertconfig': '告警配置',
-    '/logquery': '日志查询',
     '/roleadmin/users': '用户列表',
     '/roleadmin/roles': '角色与权限',
     '/forbidden': '无权限',
