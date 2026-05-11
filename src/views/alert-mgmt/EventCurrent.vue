@@ -53,7 +53,22 @@
             </td>
             <td class="tc">
               <button type="button" class="link" @click="openComments(row)">评论</button>
-              <button type="button" class="link" @click="openSilence(row)">静默</button>
+              <button
+                v-if="!isEventSilenced(row)"
+                type="button"
+                class="link"
+                @click="openSilence(row)"
+              >
+                静默
+              </button>
+              <button
+                v-else-if="pickSilenceIdFromEvent(row)"
+                type="button"
+                class="link"
+                @click="cancelPlatformSilence(row)"
+              >
+                取消静默
+              </button>
               <button type="button" class="link" @click="claim(row)">认领</button>
               <button type="button" class="link danger" @click="removeEv(row)">删除</button>
             </td>
@@ -63,9 +78,40 @@
 
       <div v-if="totalPages > 1" class="am-pager">
         <span class="muted">共 {{ total }} 条，每页 {{ PAGE_SIZE }} 条</span>
-        <button type="button" class="am-btn sm" :disabled="index <= 1" @click="goPage(index - 1)">上一页</button>
-        <span>{{ index }} / {{ totalPages }}</span>
-        <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
+        <div class="am-pager-controls">
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index <= 1 || loading"
+            @click="goPage(index - 1)"
+          >
+            上一页
+          </button>
+          <div class="am-pager-nums" role="navigation" aria-label="页码">
+            <template v-for="(slot, pi) in pagerSlots" :key="'ps-' + pi">
+              <span v-if="slot === 'ellipsis'" class="am-pager-ellipsis" aria-hidden="true">…</span>
+              <button
+                v-else
+                type="button"
+                class="am-btn sm am-pager-num"
+                :class="{ 'is-active': slot === index }"
+                :disabled="loading"
+                :aria-current="slot === index ? 'page' : undefined"
+                @click="goPage(slot)"
+              >
+                {{ slot }}
+              </button>
+            </template>
+          </div>
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index >= totalPages || loading"
+            @click="goPage(index + 1)"
+          >
+            下一页
+          </button>
+        </div>
       </div>
     </div>
 
@@ -172,6 +218,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
+import { buildPagerSlots } from '@/utils/pagerSlots'
 import {
   formatEventTs,
   pickFirstTriggerTime,
@@ -186,7 +233,8 @@ import {
   eventListComments,
   eventAddComment,
   eventDeleteComment,
-  silenceCreate
+  silenceCreate,
+  silenceDelete
 } from '@/api/w8tAlert'
 import {
   SILENCE_OPERATORS,
@@ -194,7 +242,9 @@ import {
   unixToDatetimeLocal,
   labelsForApi,
   emptySilenceLabel,
-  eventRowToSilenceLabelRows
+  eventRowToSilenceLabelRows,
+  pickSilenceIdFromEvent,
+  isEventSilenced
 } from './silenceUtils'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
 
@@ -271,6 +321,7 @@ const silenceLabelHint = computed(() => {
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+const pagerSlots = computed(() => buildPagerSlots(index.value, totalPages.value))
 
 /** @param {Record<string, unknown>} row */
 function claimCell(row) {
@@ -388,6 +439,20 @@ async function removeEv(row) {
     await load()
   } catch (e) {
     pageError.value = e?.message || '删除失败'
+  }
+}
+
+/** 平台静默：POST /api/w8t/silence/silenceDelete（需 curEvent 行内返回 silenceId 等） */
+async function cancelPlatformSilence(row) {
+  const id = pickSilenceIdFromEvent(row)
+  const fc = faultCenterIdForRow(row)
+  if (!id || !fc) return
+  if (!confirm(`取消平台静默「${id}」？事件将按规则重新评估（非 Alertmanager 静默）。`)) return
+  try {
+    await silenceDelete({ id, faultCenterId: fc })
+    await load()
+  } catch (e) {
+    pageError.value = e?.message || '取消静默失败'
   }
 }
 
@@ -587,7 +652,44 @@ async function submitSilence() {
 .link { background: none; border: none; color: #2563eb; cursor: pointer; margin: 0 4px; font-size: 12px; }
 .link.danger { color: #b91c1c; }
 .link.sm { font-size: 12px; }
-.am-pager { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid var(--border-default); }
+.am-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px;
+  border-top: 1px solid var(--border-default);
+}
+.am-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.am-pager-nums {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.am-pager-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+.am-pager-num.is-active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.am-pager-ellipsis {
+  padding: 0 2px;
+  color: #888;
+  font-size: 13px;
+  user-select: none;
+}
 .muted { color: #666; font-size: 13px; }
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000;

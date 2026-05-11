@@ -182,47 +182,6 @@
           <span class="nav-text">值班中心</span>
         </router-link>
 
-        <div v-if="isOps" class="nav-collapse" aria-label="分析诊断">
-          <button
-            type="button"
-            class="nav-collapse-trigger"
-            :class="{ 'is-active-parent': isAnalysisDiagSection }"
-            :aria-expanded="analysisDiagNavExpanded"
-            @click="analysisDiagNavExpanded = !analysisDiagNavExpanded"
-          >
-            <span class="nav-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2a4 4 0 0 1 4 4c0 2.5-1.5 4.5-3 6l-1 1-1-1c-1.5-1.5-3-3.5-3-6a4 4 0 0 1 4-4z"/>
-                <path d="M9 18h6M10 22h4"/>
-                <path d="M8 14h8"/>
-              </svg>
-            </span>
-            <span class="nav-text">分析诊断</span>
-            <span class="nav-collapse-chevron" :class="{ expanded: analysisDiagNavExpanded }" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5v14l11-7L8 5z" />
-              </svg>
-            </span>
-          </button>
-          <Transition name="nav-collapse-h">
-            <div v-show="analysisDiagNavExpanded" class="nav-collapse-body">
-              <router-link
-                to="/aiops-rca"
-                class="nav-item nav-item-child"
-                active-class="active"
-              >
-                <span class="nav-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 16v-4M12 8h.01"/>
-                  </svg>
-                </span>
-                <span class="nav-text">智能诊断</span>
-              </router-link>
-            </div>
-          </Transition>
-        </div>
-
         <div v-if="isRoot" class="nav-collapse" aria-label="人员管理">
           <button
             type="button"
@@ -395,17 +354,6 @@ watch(
   isPersonnelMgmtRoute,
   (on) => {
     if (on) personnelNavExpanded.value = true
-  },
-  { immediate: true }
-)
-
-const isAnalysisDiagSection = computed(() => route.path.startsWith('/aiops-rca'))
-const analysisDiagNavExpanded = ref(false)
-
-watch(
-  isAnalysisDiagSection,
-  (on) => {
-    if (on) analysisDiagNavExpanded.value = true
   },
   { immediate: true }
 )

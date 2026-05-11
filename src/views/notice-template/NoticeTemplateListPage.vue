@@ -48,9 +48,15 @@
           <tr v-if="pagedRows.length === 0">
             <td :colspan="list.length >= 1 ? 6 : 5" class="nop-empty">暂无数据</td>
           </tr>
-          <tr v-for="record in pagedRows" :key="rowKey(record)">
+          <tr
+            v-for="record in pagedRows"
+            :key="rowKey(record)"
+            :class="{ 'nop-row-feishu-click': canQuickEditFeishu(record) }"
+            :title="canQuickEditFeishu(record) ? '点击蓝色区域进入编辑（飞书模版）' : undefined"
+            @click="onFeishuRowClick(record, $event)"
+          >
             <td>
-              <div class="nt-name">{{ record.name }}</div>
+              <div class="nt-name" :class="{ 'nop-link-hit': canQuickEditFeishu(record) }">{{ record.name }}</div>
               <div class="nop-sub">
                 <span :title="'点击复制 ID'" class="nop-uuid" @click="copyId(rowKey(record))">
                   {{ rowKey(record) }}
@@ -58,11 +64,11 @@
                 <button type="button" class="nop-icon-copy" title="复制 ID" @click="copyId(rowKey(record))">⎘</button>
               </div>
             </td>
-            <td>
+            <td :class="{ 'nop-link-td': canQuickEditFeishu(record) }">
               <NotificationTypeIcon v-if="typeLabel(record.noticeType)" :type="record.noticeType" />
               <span v-else class="muted">-</span>
             </td>
-            <td>{{ descCell(record.description) }}</td>
+            <td :class="{ 'nop-link-td': canQuickEditFeishu(record) }">{{ descCell(record.description) }}</td>
             <td class="nw">{{ formatUpdateAt(record.updateAt) }}</td>
             <td>
               <span class="nop-pill">{{ record.updateBy || '未知用户' }}</span>
@@ -186,6 +192,23 @@ function rowKey(record) {
 
 function typeLabel(noticeType) {
   return noticeType && TMPL_TYPES.has(String(noticeType))
+}
+
+function isFeishuTemplate(record) {
+  return String(record?.noticeType ?? '') === 'FeiShu'
+}
+
+function canQuickEditFeishu(record) {
+  return perm.canUpdate() && isFeishuTemplate(record)
+}
+
+/** 飞书模版：点击行内区域直接打开编辑（与 ⋯ → 更新 相同），排除 ID 复制与操作菜单 */
+function onFeishuRowClick(record, e) {
+  if (!canQuickEditFeishu(record)) return
+  const el = e.target
+  if (!(el instanceof Element)) return
+  if (el.closest('.nop-sub, .nop-more, .nop-more-menu, button, summary, a, input, textarea, label')) return
+  openUpdate(record)
 }
 
 function descCell(text) {
@@ -415,6 +438,29 @@ onUnmounted(() => {
   border-collapse: collapse;
   font-size: 13px;
   min-width: 800px;
+}
+.nop-table tbody tr.nop-row-feishu-click {
+  cursor: pointer;
+}
+.nop-table tbody tr.nop-row-feishu-click:hover td {
+  background: #eff6ff;
+}
+/* 飞书可编辑行：蓝色链接感，提示可点 */
+.nop-table tbody tr.nop-row-feishu-click .nop-link-hit {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+.nop-table tbody tr.nop-row-feishu-click:hover .nop-link-hit {
+  color: #1d4ed8;
+}
+.nop-table tbody tr.nop-row-feishu-click td.nop-link-td {
+  color: #2563eb;
+  font-weight: 500;
+}
+.nop-table tbody tr.nop-row-feishu-click:hover td.nop-link-td {
+  color: #1d4ed8;
 }
 .nop-table th,
 .nop-table td {

@@ -233,7 +233,9 @@ export async function eventDeleteComment(body) {
 
 /** @param {Record<string, unknown>} params */
 export async function silenceList(params) {
-  const res = await http.get(`${W8T_BASE}/silence/silenceList`, { params })
+  const res = await http.get(`${W8T_BASE}/silence/silenceList`, {
+    params: mergeFaultCenterQuery(params || {})
+  })
   return unwrapW8t(res)
 }
 
@@ -260,7 +262,11 @@ export async function silenceUpdate(body) {
   return unwrapW8t(res)
 }
 
-/** @param {Record<string, unknown>} body */
+/**
+ * 平台静默（`w8t_silence` / Redis `.mutes`），与 Alertmanager `/api/alert/silence/*` 无关。
+ * Body：`id` 必填；可选 `faultCenterId` + `fault_center_id`（与库中 `fault_center_id` 一致时服务端校验）。
+ * @param {{ id: string } & Record<string, unknown>} body
+ */
 export async function silenceDelete(body) {
   const res = await http.post(`${W8T_BASE}/silence/silenceDelete`, mergeSilenceBody(body), json)
   return unwrapW8t(res)

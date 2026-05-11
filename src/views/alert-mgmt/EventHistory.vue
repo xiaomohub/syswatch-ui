@@ -60,9 +60,40 @@
 
       <div v-if="totalPages > 1" class="am-pager">
         <span class="muted">共 {{ total }} 条，每页 {{ PAGE_SIZE }} 条</span>
-        <button type="button" class="am-btn sm" :disabled="index <= 1" @click="goPage(index - 1)">上一页</button>
-        <span>{{ index }} / {{ totalPages }}</span>
-        <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
+        <div class="am-pager-controls">
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index <= 1 || loading"
+            @click="goPage(index - 1)"
+          >
+            上一页
+          </button>
+          <div class="am-pager-nums" role="navigation" aria-label="页码">
+            <template v-for="(slot, pi) in pagerSlots" :key="'ps-' + pi">
+              <span v-if="slot === 'ellipsis'" class="am-pager-ellipsis" aria-hidden="true">…</span>
+              <button
+                v-else
+                type="button"
+                class="am-btn sm am-pager-num"
+                :class="{ 'is-active': slot === index }"
+                :disabled="loading"
+                :aria-current="slot === index ? 'page' : undefined"
+                @click="goPage(slot)"
+              >
+                {{ slot }}
+              </button>
+            </template>
+          </div>
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index >= totalPages || loading"
+            @click="goPage(index + 1)"
+          >
+            下一页
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -72,6 +103,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
+import { buildPagerSlots } from '@/utils/pagerSlots'
 import {
   formatEventTs,
   formatHisEventClaimCell,
@@ -118,6 +150,7 @@ const endLocal = ref('')
 const sortOrder = ref('descend')
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+const pagerSlots = computed(() => buildPagerSlots(index.value, totalPages.value))
 
 /** @param {Record<string, unknown>} row */
 function hisClaimTimeLine(row) {
@@ -266,6 +299,43 @@ function goPage(p) {
 .claim-stack { vertical-align: top; line-height: 1.35; }
 .claim-time { font-size: 11px; color: #64748b; margin-top: 2px; }
 .am-empty { text-align: center; color: #888; padding: 24px; }
-.am-pager { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid var(--border-default); }
+.am-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px;
+  border-top: 1px solid var(--border-default);
+}
+.am-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.am-pager-nums {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.am-pager-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+.am-pager-num.is-active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.am-pager-ellipsis {
+  padding: 0 2px;
+  color: #888;
+  font-size: 13px;
+  user-select: none;
+}
 .muted { color: #666; font-size: 13px; }
 </style>

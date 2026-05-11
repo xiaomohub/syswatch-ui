@@ -110,3 +110,45 @@ export function eventRowToSilenceLabelRows(row) {
   }
   return []
 }
+
+/**
+ * 静默列表行 → 记录 ID（`silenceDelete` 的 `id`）
+ * @param {Record<string, unknown>} row
+ * @returns {string}
+ */
+export function pickSilenceRecordId(row) {
+  if (!row || typeof row !== 'object') return ''
+  const raw = row.id ?? row.silenceId ?? row.silence_id ?? row.muteId ?? row.mute_id
+  return raw != null ? String(raw).trim() : ''
+}
+
+/**
+ * 活跃事件行 → 平台静默 ID（后端在 `Silenced` 时建议返回，便于行内取消）
+ * @param {Record<string, unknown>} row
+ * @returns {string}
+ */
+export function pickSilenceIdFromEvent(row) {
+  if (!row || typeof row !== 'object') return ''
+  const raw =
+    row.silenceId ??
+    row.silence_id ??
+    row.muteId ??
+    row.mute_id ??
+    row.w8tSilenceId ??
+    row.w8t_silence_id
+  if (raw != null && String(raw).trim() !== '') return String(raw).trim()
+  const arr = row.matchedSilenceIds ?? row.matched_silence_ids
+  if (Array.isArray(arr) && arr.length) {
+    const first = arr[0]
+    return first != null ? String(first).trim() : ''
+  }
+  return ''
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ */
+export function isEventSilenced(row) {
+  const s = String(row?.status ?? row?.evalStatus ?? row?.eval_status ?? '').trim()
+  return /^silenced$/i.test(s)
+}

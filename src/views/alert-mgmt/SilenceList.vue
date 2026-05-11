@@ -64,7 +64,7 @@
           <tr v-if="rows.length === 0">
             <td colspan="8" class="am-empty">{{ effectiveFc ? '暂无静默' : '—' }}</td>
           </tr>
-          <tr v-for="row in rows" :key="row.id || row.name">
+          <tr v-for="row in rows" :key="pickSilenceRecordId(row) || row.name || row.id">
             <td>{{ row.name || row.id || '—' }}</td>
             <td><span class="status-badge" :class="`st-${row.status}`">{{ statusLabel(row.status) }}</span></td>
             <td class="small mono">{{ silenceLabelsSummary(buildLabelsSummary(row.labels || [])) }}</td>
@@ -74,17 +74,48 @@
             <td>{{ row.comment || '—' }}</td>
             <td class="tc">
               <button type="button" class="link" @click="openModalEdit(row)">编辑</button>
-              <button type="button" class="link danger" @click="del(row)">删除</button>
+              <button type="button" class="link danger" @click="cancelSilence(row)">取消静默</button>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div v-if="total > size" class="am-pager">
-        <span class="muted">共 {{ total }} 条</span>
-        <button type="button" class="am-btn sm" :disabled="index <= 1" @click="goPage(index - 1)">上一页</button>
-        <span>{{ index }} / {{ totalPages }}</span>
-        <button type="button" class="am-btn sm" :disabled="index >= totalPages" @click="goPage(index + 1)">下一页</button>
+      <div v-if="totalPages > 1" class="am-pager">
+        <span class="muted">共 {{ total }} 条，每页 {{ size }} 条</span>
+        <div class="am-pager-controls">
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index <= 1 || loading"
+            @click="goPage(index - 1)"
+          >
+            上一页
+          </button>
+          <div class="am-pager-nums" role="navigation" aria-label="页码">
+            <template v-for="(slot, pi) in pagerSlots" :key="'ps-' + pi">
+              <span v-if="slot === 'ellipsis'" class="am-pager-ellipsis" aria-hidden="true">…</span>
+              <button
+                v-else
+                type="button"
+                class="am-btn sm am-pager-num"
+                :class="{ 'is-active': slot === index }"
+                :disabled="loading"
+                :aria-current="slot === index ? 'page' : undefined"
+                @click="goPage(slot)"
+              >
+                {{ slot }}
+              </button>
+            </template>
+          </div>
+          <button
+            type="button"
+            class="am-btn sm"
+            :disabled="index >= totalPages || loading"
+            @click="goPage(index + 1)"
+          >
+            下一页
+          </button>
+        </div>
       </div>
     </div>
 
@@ -116,6 +147,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { normalizeListPayload } from '@/utils/w8tPage'
+import { buildPagerSlots } from '@/utils/pagerSlots'
 import { silenceList, silenceCreate, silenceUpdate, silenceDelete } from '@/api/w8tAlert'
 import { faultCenterReset } from '@/api/faultcenter'
 import { useFaultCenterContextStore } from '@/store/faultCenterContext'
@@ -124,7 +156,8 @@ import SilenceForm from './SilenceForm.vue'
 import {
   formatSilenceDateTime,
   buildLabelsSummary,
-  silenceLabelsSummary
+  silenceLabelsSummary,
+  pickSilenceRecordId
 } from './silenceUtils'
 
 defineOptions({ name: 'SilenceList' })
@@ -192,7 +225,8 @@ const query = ref('')
 /** @type {import('vue').Ref<'all'|'0'|'1'|'2'>} */
 const filterStatus = ref('all')
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(1, size.value))))
+const pagerSlots = computed(() => buildPagerSlots(index.value, totalPages.value))
 
 function statusLabel(s) {
   if (s === 0) return '未生效'
@@ -292,15 +326,15 @@ async function onModalSave(body) {
   }
 }
 
-function del(row) {
+function cancelSilence(row) {
   const extra =
     row.status === 1
-      ? '\n该规则当前进行中；删除后将不再抑制匹配告警的通知。'
-      : '\n删除后将不再抑制匹配告警的通知。'
-  if (!confirm(`确定删除静默「${row.name || row.id}」？${extra}`)) return
-  const id = row.id
+      ? '\n该规则当前生效中；取消后将按规则重新评估通知（与 POST /api/w8t/silence/silenceDelete 一致）。'
+      : '\n取消后将不再抑制匹配告警（平台静默 w8t_silence，非 Alertmanager）。'
+  const id = pickSilenceRecordId(row)
+  if (!confirm(`确定取消静默「${row.name || id}」？${extra}`)) return
   if (!id) {
-    pageError.value = '缺少 id'
+    pageError.value = '缺少静默 id（列表项需返回 id）'
     return
   }
   const fc = effectiveFc.value
@@ -311,7 +345,7 @@ function del(row) {
   silenceDelete({ id, faultCenterId: fc })
     .then(() => load())
     .catch((e) => {
-      pageError.value = e?.message || '删除失败'
+      pageError.value = e?.message || '取消静默失败'
     })
 }
 </script>
@@ -447,10 +481,41 @@ function del(row) {
 }
 .am-pager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 10px 14px;
   padding: 12px;
   border-top: 1px solid var(--border-default);
+}
+.am-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.am-pager-nums {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.am-pager-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+.am-pager-num.is-active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.am-pager-ellipsis {
+  padding: 0 2px;
+  color: #888;
+  font-size: 13px;
+  user-select: none;
 }
 .muted {
   color: #666;
