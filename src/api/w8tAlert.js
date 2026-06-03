@@ -42,6 +42,14 @@ function mergeHisEventQuery(params) {
       p.endAt = p.endAt ?? n
     }
   }
+  const claimRaw = p.claimUser ?? p.claim_user ?? p.dutyUserName ?? p.duty_user_name
+  if (claimRaw != null && String(claimRaw).trim() !== '') {
+    const v = String(claimRaw).trim()
+    p.claimUser = p.claimUser ?? v
+    p.claim_user = p.claim_user ?? v
+    p.dutyUserName = p.dutyUserName ?? v
+    p.duty_user_name = p.duty_user_name ?? v
+  }
   return p
 }
 

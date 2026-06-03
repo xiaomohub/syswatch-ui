@@ -154,6 +154,41 @@
                   <span>Write URL <em class="req">*</em></span>
                   <input v-model="form.write.url" class="nod-input" placeholder="https://..." autocomplete="off">
                 </label>
+
+                <h3 class="ds-section-title">本地 prometheus.yml 与热重载</h3>
+                <p class="ds-field-hint">
+                  下方 YAML 仅保存在本机浏览器（localStorage），不会随「提交」写入后端；用于对照、复制到服务器上的配置文件。
+                  热重载为浏览器直连 <code class="ds-code">POST …/-/reload</code>（需 Prometheus 启用
+                  <code class="ds-code">--web.enable-lifecycle</code>）。若控制台出现 CORS 错误，需 Prometheus 或反向代理放行跨域，或将 UI 与 Prometheus 部署为同站。
+                </p>
+                <textarea
+                  v-model="promLocal.yaml"
+                  class="nod-input ds-yaml ds-yaml-prom"
+                  spellcheck="false"
+                  placeholder="# global:&#10;#   scrape_interval: 15s&#10;scrape_configs: []&#10;"
+                />
+                <label class="nod-field">
+                  <span>热重载 URL（可选，覆盖下面推导地址）</span>
+                  <input
+                    v-model="promLocal.reloadOverride"
+                    class="nod-input"
+                    placeholder="留空则根据上方「URL」推导，例如 http://10.0.0.1:9099/-/reload"
+                    autocomplete="off"
+                  >
+                </label>
+                <p class="ds-field-hint">
+                  将请求：<span class="ds-prom-effective">{{ effectiveReloadUrl || '—（请先填写 URL）' }}</span>
+                </p>
+                <div class="ds-prom-actions">
+                  <button
+                    type="button"
+                    class="nop-btn primary"
+                    :disabled="prometheusReloading || !form.http.url.trim()"
+                    @click="handlePrometheusReload"
+                  >
+                    {{ prometheusReloading ? '请求中…' : 'POST /-/reload（热重载）' }}
+                  </button>
+                </div>
               </template>
             </template>
 
@@ -241,6 +276,16 @@
               <button type="button" class="nop-btn ghost" :disabled="submitting" @click="handleTestConnection">
                 连接测试
               </button>
+              <button
+                v-if="form.type === 'Prometheus'"
+                type="button"
+                class="nop-btn ghost"
+                :disabled="submitting || prometheusReloading || !form.http.url.trim()"
+                title="与上方「POST /-/reload」相同，从浏览器直连 Prometheus"
+                @click="handlePrometheusReload"
+              >
+                {{ prometheusReloading ? '热重载中…' : 'Prometheus 热重载' }}
+              </button>
             </div>
             <div class="ds-footer-right">
               <button type="button" class="nop-btn" :disabled="lockStep" @click="goPrevStep">上一步</button>
@@ -256,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import {
   createDatasource,
   datasourcePing,
@@ -267,6 +312,10 @@ import {
   DATASOURCE_TYPE_CARDS,
   DATASOURCE_HTTP_URL_RE
 } from '@/constants/datasourceTypes'
+import {
+  postPrometheusLifecycleReload,
+  prometheusReloadUrlFromQueryUrl
+} from '@/utils/prometheusLifecycle'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -305,6 +354,91 @@ const form = reactive({
   /** 编辑回填透传 */
   elasticSearch: /** @type {unknown} */ (null)
 })
+
+/** Prometheus 本地草稿（仅浏览器，不走数据源保存接口） */
+const promLocal = reactive({ yaml: '', reloadOverride: '' })
+const prometheusReloading = ref(false)
+const skipPromLocalPersist = ref(false)
+let promLocalSaveTimer = 0
+
+const promLocalStorageKey = computed(() => {
+  if (!props.open || form.type !== 'Prometheus') return ''
+  if (props.variant === 'update' && props.record && props.record.id != null) {
+    return `syswatch.prom-local.v1:id:${props.record.id}`
+  }
+  return 'syswatch.prom-local.v1:draft'
+})
+
+const effectiveReloadUrl = computed(() => {
+  const o = String(promLocal.reloadOverride || '').trim()
+  if (o) return o
+  const base = String(form.http.url || '').trim()
+  if (!base) return ''
+  try {
+    return prometheusReloadUrlFromQueryUrl(base)
+  } catch {
+    return ''
+  }
+})
+
+function loadPromLocalFromStorage() {
+  const key = promLocalStorageKey.value
+  if (!key) return
+  skipPromLocalPersist.value = true
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) {
+      promLocal.yaml = ''
+      promLocal.reloadOverride = ''
+    } else {
+      const j = JSON.parse(raw) as { prometheusYml?: string; reloadUrlOverride?: string }
+      promLocal.yaml = typeof j.prometheusYml === 'string' ? j.prometheusYml : ''
+      promLocal.reloadOverride = typeof j.reloadUrlOverride === 'string' ? j.reloadUrlOverride : ''
+    }
+  } catch {
+    promLocal.yaml = ''
+    promLocal.reloadOverride = ''
+  }
+  void nextTick(() => {
+    skipPromLocalPersist.value = false
+  })
+}
+
+function persistPromLocalNow() {
+  const key = promLocalStorageKey.value
+  if (!key || skipPromLocalPersist.value) return
+  try {
+    localStorage.setItem(
+      key,
+      JSON.stringify({ prometheusYml: promLocal.yaml, reloadUrlOverride: promLocal.reloadOverride })
+    )
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function schedulePersistPromLocal() {
+  window.clearTimeout(promLocalSaveTimer)
+  promLocalSaveTimer = window.setTimeout(() => persistPromLocalNow(), 450)
+}
+
+watch(
+  () => ({ open: props.open, key: promLocalStorageKey.value }),
+  ({ open, key }) => {
+    if (!open || !key) return
+    loadPromLocalFromStorage()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [promLocal.yaml, promLocal.reloadOverride],
+  () => {
+    if (!promLocalStorageKey.value || skipPromLocalPersist.value) return
+    schedulePersistPromLocal()
+  },
+  { deep: true }
+)
 
 const isHttpType = computed(() => DATASOURCE_HTTP_TYPES.has(form.type))
 
@@ -677,6 +811,55 @@ async function handleTestConnection() {
   }
 }
 
+async function handlePrometheusReload() {
+  const base = String(form.http.url || '').trim()
+  if (!base) {
+    emit('toast', { message: '请先填写 Prometheus URL', type: 'error' })
+    return
+  }
+  const ro = String(promLocal.reloadOverride || '').trim()
+  if (ro) {
+    const err = validateHttpUrl('热重载 URL', ro)
+    if (err) {
+      emit('toast', { message: err, type: 'error' })
+      return
+    }
+  }
+  prometheusReloading.value = true
+  try {
+    const extra = form.type !== 'ElasticSearch' ? kvListToObject(form.httpHeaders) : {}
+    const timeoutMs = Math.max(1000, (Number(form.http.timeout) || 30) * 1000)
+    const r = await postPrometheusLifecycleReload({
+      queryBaseUrl: base,
+      reloadUrl: ro || undefined,
+      timeoutMs,
+      basicUser: authState.value === 'On' ? form.auth.user.trim() : undefined,
+      basicPass: authState.value === 'On' ? form.auth.pass : undefined,
+      extraHeaders: Object.keys(extra).length ? extra : undefined
+    })
+    if (r.ok) {
+      emit('toast', { message: `热重载已接受（HTTP ${r.status}）`, type: 'success' })
+    } else {
+      emit('toast', {
+        message: `热重载失败：HTTP ${r.status} ${r.statusText || ''}`.trim(),
+        type: 'error'
+      })
+    }
+  } catch (e) {
+    const msg =
+      e instanceof Error
+        ? e.name === 'AbortError'
+          ? '热重载请求超时'
+          : e.message.includes('Failed to fetch') || e.message.includes('NetworkError')
+            ? '请求失败（多为 CORS 或网络不可达）'
+            : e.message
+        : '热重载请求失败'
+    emit('toast', { message: msg, type: 'error' })
+  } finally {
+    prometheusReloading.value = false
+  }
+}
+
 async function handleSubmit() {
   if (!validateStep1()) return
   submitting.value = true
@@ -981,6 +1164,29 @@ async function handleSubmit() {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   line-height: 1.5;
+}
+.ds-yaml-prom {
+  min-height: 260px;
+}
+.ds-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.ds-prom-effective {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  color: #0f172a;
+}
+.ds-prom-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 .nod-field.chk {
   display: flex;

@@ -105,9 +105,6 @@
               <option value="">全部数据源</option>
               <option v-for="t in alertDatasourceTypes" :key="t" :value="t">{{ t }}</option>
             </select>
-            <label v-if="fcStore.currentFaultCenterId" class="chk am-toolbar-chk">
-              <input v-model="onlyCurrentFc" type="checkbox" @change="resetPage"> 当前故障中心
-            </label>
           </div>
           <div class="am-toolbar-center">
             <div class="am-search-field">
@@ -317,14 +314,12 @@ import {
   ruleChangeStatus,
   ruleBatchChange
 } from '@/api/w8tAlert'
-import { useFaultCenterContextStore } from '@/store/faultCenterContext'
 import { ALERT_DATASOURCE_TYPES } from '@/constants/alertDatasourceTypes'
 
 const alertDatasourceTypes = ALERT_DATASOURCE_TYPES
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
-const fcStore = useFaultCenterContextStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -339,7 +334,6 @@ const filterGroupId = ref('')
 const filterQuery = ref('')
 const filterDs = ref('')
 const filterStatus = ref('all')
-const onlyCurrentFc = ref(true)
 
 const ruleGroups = ref([])
 const selectedIds = ref([])
@@ -374,9 +368,7 @@ const createRuleTo = computed(() => ({
 }))
 
 const displayRows = computed(() => {
-  const fc = fcStore.currentFaultCenterId
-  if (!onlyCurrentFc.value || !fc) return rawList.value
-  return rawList.value.filter((r) => !r.faultCenterId || r.faultCenterId === fc)
+  return rawList.value
 })
 
 const allVisibleSelected = computed(() => {

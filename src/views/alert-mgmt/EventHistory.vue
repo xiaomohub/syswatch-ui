@@ -7,21 +7,52 @@
 
     <p v-if="!effectiveFc" class="am-warn">{{ embedHint }}</p>
 
-    <div class="am-filters">
-      <input v-model="query" class="am-input sm" placeholder="query" @keyup.enter="resetPage">
-      <input v-model="ruleId" class="am-input sm" placeholder="ruleId">
-      <input v-model="ruleName" class="am-input sm" placeholder="ruleName">
-      <input v-model="fingerprint" class="am-input sm" placeholder="fingerprint">
-      <input v-model="datasourceType" class="am-input sm" placeholder="datasourceType（可选）">
-      <input v-model="severity" class="am-input sm" placeholder="severity">
-      <input v-model="status" class="am-input sm" placeholder="status 如 Recovered">
+    <form id="his-event-filters" class="am-filters" @submit.prevent="resetPage">
+      <input
+        v-model="query"
+        class="am-input grow"
+        name="q"
+        placeholder="关键词（后端全文 query，可选）"
+        autocomplete="off"
+      >
+      <input
+        v-model="fingerprint"
+        class="am-input sm"
+        placeholder="指纹"
+        autocomplete="off"
+      >
+      <input
+        v-model="ruleName"
+        class="am-input sm"
+        placeholder="规则名"
+        autocomplete="off"
+      >
+      <input
+        v-model="claimUser"
+        class="am-input sm"
+        placeholder="认领人（视后端是否支持）"
+        autocomplete="off"
+      >
+      <input
+        v-model="severity"
+        class="am-input sm"
+        placeholder="级别"
+        autocomplete="off"
+      >
+      <input
+        v-model="status"
+        class="am-input sm"
+        placeholder="状态，如 Recovered"
+        autocomplete="off"
+      >
       <label class="am-inline">开始 <input v-model="startLocal" type="datetime-local" class="am-input"></label>
       <label class="am-inline">结束 <input v-model="endLocal" type="datetime-local" class="am-input"></label>
-      <select v-model="sortOrder" class="am-input sm">
+      <select v-model="sortOrder" class="am-input sm" @change="resetPage">
         <option value="descend">时间降序</option>
         <option value="ascend">时间升序</option>
       </select>
-    </div>
+      <button type="submit" class="am-btn primary" :disabled="loading || !effectiveFc">查询</button>
+    </form>
 
     <p v-if="pageError" class="am-err">{{ pageError }}</p>
 
@@ -139,10 +170,9 @@ const index = ref(1)
 const PAGE_SIZE = 10
 
 const query = ref('')
-const ruleId = ref('')
 const ruleName = ref('')
 const fingerprint = ref('')
-const datasourceType = ref('')
+const claimUser = ref('')
 const severity = ref('')
 const status = ref('')
 const startLocal = ref('')
@@ -222,10 +252,9 @@ async function load() {
     const data = await hisEventList({
       faultCenterId: fc,
       query: query.value?.trim() || undefined,
-      ruleId: ruleId.value?.trim() || undefined,
       ruleName: ruleName.value?.trim() || undefined,
       fingerprint: fingerprint.value?.trim() || undefined,
-      datasourceType: datasourceType.value?.trim() || undefined,
+      claimUser: claimUser.value?.trim() || undefined,
       severity: severity.value?.trim() || undefined,
       status: status.value?.trim() || undefined,
       startAt,
@@ -268,6 +297,7 @@ function goPage(p) {
   font-size: 13px;
 }
 .am-input.sm { min-width: 120px; }
+.am-input.grow { flex: 1 1 180px; min-width: 160px; max-width: 360px; }
 .am-inline { font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .am-btn {
   padding: 8px 14px;
@@ -277,6 +307,7 @@ function goPage(p) {
   font-size: 13px;
   cursor: pointer;
 }
+.am-btn.primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
 .am-btn.sm { padding: 4px 10px; font-size: 12px; }
 .am-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .am-err { color: #b91c1c; font-size: 13px; }
